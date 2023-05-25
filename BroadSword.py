@@ -5,6 +5,10 @@ from reixs.LoadData import *
 
 
 # These are the input and output spectra of type float
+# ['Column'] = [0=Energy, 1=Counts]
+# ['Row'] = data
+# ['XES, XANES'] = [0=XES, 1=XANES]
+# ['XES, XAS, or XANES'] = [0=XES,1=XAS,2=XANES]
 ExpSXS = np.zeros([2,1500,2]) # Experimental Spectra ['Column']['Row']['XES or XANES']
 CalcSXS = np.zeros([2,3500,3,40]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
 BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
@@ -23,6 +27,7 @@ SumSXSCount = np.zeros([3],dtype=int)
 scaleXES = np.zeros([40,50])
 Bands = np.zeros([50,40,2])
 BandNum = np.zeros([40],dtype=int)
+Fermi = 0
 Fermis = np.zeros([40])
 Binds = np.zeros([40])
 shiftXES = np.zeros([40,50])
@@ -73,7 +78,7 @@ class Broaden():
             ExpSXSCount[1] = c1 # Length
         return
 
-    def loadCalc(self, basedir, XES, XAS, XANES):
+    def loadCalc(self, basedir, XES, XAS, XANES, sites=1):
         """
         Parameters
         ----------
@@ -83,6 +88,7 @@ class Broaden():
             Specify the file name (.txspec).
         """
         global CalcSXSCase
+        global Site
 
         with open(basedir+"/"+XES, "r") as xesFile:
             df = pd.read_csv(xesFile, delimiter='\s+',header=None)
@@ -111,10 +117,11 @@ class Broaden():
                 c1 += 1
             CalcSXSCount[2][CalcSXSCase] = c1 # Length for each Site
 
+        Site[CalcSXSCase] = sites
         CalcSXSCase += 1
         return
 
-    def FindBands(self):
+    def FindBands(self): # Perhaps change the while loops to for in range()
         c1 = 0
         while c1 < CalcSXSCase: # For each site (.loadCalc)
             starter = False
@@ -135,6 +142,112 @@ class Broaden():
             c1 += 1
         return
     
-    def Shift(self):
+    def Shift(self,XESshift, XASshift, XESbandshift=0):
+        """
+        Parameters
+        ----------
+        XESshift : float
+            Specify a constant shift to the entire XES spectrum
+        XASshift : float
+            Specify a constant shift to the entire XAS spectrum
+        XESbandshift : [float]
+            Specify a shift for each individual band found in FindBands()
+        """
+        Ryd = 13.605698066 # Rydberg energy to eV
+        Eval = 0 # Location of valence band
+        Econ = 0 # Location of conduction band
+        if XESshift != 0: # Constant shift to all bands
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BandNum[c1]):
+                    shiftXES[c1][c2] = XESshift
+        else: # Shift bands separately.
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BandNum[c1]):
+                    shiftXES[c1][c2] = XESshift 
+                    #TODO This is something that should be done eventually, but has low usage
+                    # Need to figure out how to get the individual shifts to work.
+                    # Perhaps this could be put into the .loadCalc so that they.
+                    # I would need to call find bands in .loadCalc and then print them out. Not a big issue rn.
+
+        shiftXAS = XASshift
+        for c1 in range(CalcSXSCase): # This goes through the XAS spectra
+            for c2 in range(CalcSXSCount[1][c1]): #Line 504
+                BroadSXS[1][c2][1][c1] = CalcSXS[1][c2][1][c1] # Counts from calc go into Broad
+                BroadSXSCount[1][c1] = CalcSXSCount[1][c1]
+                BroadSXS[0][c2][1][c1] = CalcSXS[0][c2][1][c1] + shiftXAS + (Binds[c1]+Fermi) * Ryd # Shift the energy of XAS appropriately
+        
+        for c1 in range(CalcSXSCase): # This goes through the XANES spectra
+            for c2 in range(CalcSXSCount[2][c1]): #Line 514
+                BroadSXS[1][c2][2][c1] = CalcSXS[1][c2][2][c1] # Counts from calc go into Broad
+                BroadSXSCount[2][c1] = CalcSXSCount[2][c1]
+                BroadSXS[0][c2][2][c1] = CalcSXS[0][c2][2][c1] + shiftXAS + (Binds[c1]+Fermis[c1]) * Ryd # Shift the energy of XANES appropriately
+
+        for c1 in range(CalcSXSCase): # If there are a different shift between bands find that difference
+            for c2 in range(BandNum[c1]): # Line 526
+                bandshift[c1][c2] = shiftXES[c1][c2] - shiftXES[c1][0]
+
+        for c1 in range(CalcSXSCase): # This goes through the XES spectra
+            BroadSXSCount[0][c1] = CalcSXSCount[0][c1]
+            for c2 in range(CalcSXSCount[0][c1]): # Line 535
+                BroadSXS[0][c2][0][c1] = CalcSXS[0][c2][0][c1] + bandshift[c1][0] # Still confused why bandshift[c1][0] is here. Always zero
+                BroadSXS[1][c2][0][c1] = CalcSXS[1][c2][0][c1]
+
+        for c1 in range(CalcSXSCase): # No idea why this is here
+            c2 = 1 # Line 544
+            c3 = 0
+            while c3 < BroadSXSCount[0][c1]:
+                if BroadSXS[0][c3][0][c1] >= (Bands[c2][c1][0]+bandshift[c1][0]):
+                    c4 = 0
+                    while BroadSXS[1][c3][0][c1] != 0:
+                        bands_temp[c4][c2][c1] = BroadSXS[1][c3][0][c1]
+                        BroadSXS[1][c3][0][c1] = 0
+                        c3 += 1
+                        c4 +=1
+                    bands_temp_count[c1][c2] = c4
+                    c2 += 1
+                    if c2 >= BandNum[c1]:
+                        c3 = 99999
+                c3 += 1
+
+        for c1 in range(CalcSXSCase):
+            for c2 in range(2,BandNum[c1]): # Line 570
+                c3 = 0
+                while c3 < BroadSXSCount[0][c1]:
+                    if BroadSXS[0][c3][0][c1] >= (Bands[c2][c1][0] + bandshift[c1][c2]):
+                        c4 = 0
+                        while c4 < bands_temp_count[c1][c2]:
+                            BroadSXS[1][c3][0][c1] = bands_temp[c4][c2][c1]
+                            c4 += 1
+                            c3 += 1
+                        c3 = 99999
+                    c3 += 1
+        
+        for c1 in range(CalcSXSCase):
+            for c2 in range(BroadSXSCount): # Line 592
+                BroadSXS[0][c2][0][c1] = BroadSXS[0][c2][0][c1] + shiftXES[c1][0] + (Binds[c1]+Fermi) * Ryd
+
+        return
+
+    def initParam(self, fermi, fermis, binds, edge):
+        """
+        Parameters
+        ----------
+        fermi : float
+            Specify the fermi energy for the ground state spectra
+        fermis : [float] A list of floats
+            Specify the fermi energy for all of the excited state calculations
+        bind : [float] A list of floats
+            Specify the binding energy of the ground states for each site
+        edge : [String] A list of strings
+            Specify the excitation edges
+        """
+        global Fermi
+        global Fermis
+        global Binds
+        global Edge
+        Fermi = fermi
+        Fermis = fermis # Might have to change this so that you keep the size of the arrays the same.
+        Binds = binds
+        Edge = edge
 
         return
