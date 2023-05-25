@@ -6,6 +6,7 @@ from reixs.LoadData import *
 
 # These are the input and output spectra of type float
 # ['Column'] = [0=Energy, 1=Counts]
+# ['Column'] = [0=Energy, 1=Counts, 2=CoreLifeXAS, 3=Intermediate Step, 4=Delta E, 5=Intermediate Step, 6=Final Gaussian Counts]
 # ['Row'] = data
 # ['XES, XANES'] = [0=XES, 1=XANES]
 # ['XES, XAS, or XANES'] = [0=XES,1=XAS,2=XANES]
@@ -39,6 +40,7 @@ Site = np.zeros([40])
 bandshift = np.zeros([40,40])
 bands_temp = np.zeros([3500,40,40])
 bands_temp_count = np.zeros([40,40],dtype=int)
+BandGap = 0
 
 class Broaden():
     """Class to take in data and broaden it.
@@ -144,6 +146,8 @@ class Broaden():
     
     def Shift(self,XESshift, XASshift, XESbandshift=0):
         """
+        This will shift the files initially when uploaded, then by user specifed shifts to XES and XAS until alligned with experimental spectra.
+
         Parameters
         ----------
         XESshift : float
@@ -223,9 +227,32 @@ class Broaden():
                     c3 += 1
         
         for c1 in range(CalcSXSCase):
-            for c2 in range(BroadSXSCount): # Line 592
+            for c2 in range(BroadSXSCount[0][c1]): # Line 592
                 BroadSXS[0][c2][0][c1] = BroadSXS[0][c2][0][c1] + shiftXES[c1][0] + (Binds[c1]+Fermi) * Ryd
 
+        c1 = BroadSXSCount[0][0]-1
+        while c1 >= 0:
+            if BroadSXS[1][c1][0][0] > 0:
+                Eval = BroadSXS[0][c1][0][0]
+                c1 = -1
+                print(Eval)
+            c1 -= 1
+
+        c1 = 0
+        while c1 < BroadSXSCount[1][0]:
+            if BroadSXS[1][c1][1][0] > 0:
+                Econ = BroadSXS[0][c1][1][0]
+                c1 = 999999
+                print(Econ)
+            c1 += 1
+
+        for c3 in range(3):
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BroadSXSCount[c3][c1]):
+                    BroadSXS[1][c2][c3][c1] = BroadSXS[1][c2][c3][c1]*(BroadSXS[0][c2][c1][c1]/Econ)
+        global BandGap
+        BandGap = Econ - Eval
+        print(BandGap)
         return
 
     def initParam(self, fermi, fermis, binds, edge):
