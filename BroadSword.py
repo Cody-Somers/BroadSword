@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+from ctypes import *
 from reixs.LoadData import *
 
 
@@ -309,10 +310,17 @@ class Broaden():
                             c3 = BandNum[c1]-1
                     else:
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
-
+        
+        mylib = cdll.LoadLibrary('./libmatrices.so')
+        funnth = mylib.test()
+        mylib.broadXAS.argtype = [c_int, c_int, c_float, c_float]
+        clu = mylib.broadXAS(CalcSXSCase, byref(BroadSXSCount), BroadSXS, disord)
         print("Before matrices")
+
+        """
         # Start filling in broadening matrices. These are massive arrays. Something will have to be done to speed this us. Learn to vectorize everything
         for c1 in range(CalcSXSCase):
+            print("Here")
             for c3 in range(BroadSXSCount[0][c1]):
                 width = BroadSXS[4][c3][0][c1] / 2.3548 # This is the variance of the Gaussian Distribution
                 position = BroadSXS[0][c3][0][c1] # This is the centroid of the Gaussian Distribution
@@ -328,7 +336,7 @@ class Broaden():
                 position = BroadSXS[0][c3][0][c1]
                 for c4 in range(BroadSXSCount[0][c1]):
                     Lorentz[c3][c4] = 1/Pi*(width / ((BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)+(width*width)))
-            
+            print("There")
             for c3 in range(BroadSXSCount[0][c1]): # Line 899
                 BroadSXS[3][c3][0][c1] = 0
             for c2 in range(BroadSXSCount[0][c1]):
@@ -339,6 +347,7 @@ class Broaden():
             for c2 in range(BroadSXSCount[0][c1]):
                 for c3 in range(BroadSXSCount[0][c1]):
                     BroadSXS[6][c2][0][c1] = BroadSXS[6][c2][0][c1] + (Gauss[c3][c2] * BroadSXS[3][c3][0][c1] * (BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
+        """
         print("After matrices")
         return
 
