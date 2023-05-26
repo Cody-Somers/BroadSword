@@ -255,6 +255,93 @@ class Broaden():
         print(BandGap)
         return
 
+    def broaden(self):
+        Econd = np.zeros(40)
+        type = False
+        width = 0
+        position = 0
+        Pi = 3.14159265
+        energy_0 = 20
+
+        if XESscale != 0:
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BandNum[c1]):
+                    scaleXES[c1][c2] = XESscale
+        else:
+            return # TODO implement the band where you can scale individually. Same as up above problem with the shifting.
+        
+        for c1 in range(CalcSXSCase): # Line 791
+            c2 = 0
+            while c2 < BroadSXSCount[2][c1]:
+                if BroadSXS[1][c2][2][c1] != 0:
+                    Econd[c1] = BroadSXS[0][c2][2][c1]
+                    c2 = 999999
+                c2 += 1
+        
+        for c1 in range(CalcSXSCase): # Using scaling factor for corehole lifetime for XAS and XANES
+            for c2 in range(1,3): # Line 805
+                for c3 in range(BroadSXSCount[c2][c1]):
+                    if BroadSXS[0][c3][c2][c1] <= Econd[c1]:
+                        BroadSXS[2][c3][c2][c1] = corelifeXAS
+                    else:
+                        if BroadSXS[0][c3][c2][c1] < Econd[c1] + energy_0:
+                            BroadSXS[2][c3][c2][c1] = scaleXAS/100 * ((BroadSXS[0][c3][c2][c1]-Econd[c1]) * (BroadSXS[0][c3][c2][c1]-Econd[c1])) + corelifeXAS # Replace with **2 ??
+                        else:
+                            BroadSXS[2][c3][c2][c1] = scaleXAS/100 * (energy_0 * energy_0) + corelifeXAS
+                    BroadSXS[4][c3][c2][c1] = BroadSXS[0][c3][c2][c1] / mono
+
+        for c1 in range(CalcSXSCase): # Corehole lifetime scaling for XES
+            type = False # Line 830
+            c3 = 0
+            for c2 in range(BroadSXSCount[0][c1]):
+                BroadSXS[4][c2][0][c1] = BroadSXS[0][c2][0][c1]/spec
+                if type is False:
+                    if BroadSXS[1][c2][0][c1] != 0:
+                        type = True
+                    else:
+                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
+                if type is True:
+                    if BroadSXS[1][c2][0][c1] == 0:
+                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
+                        type = False
+                        c3 += 1
+                        if c3 > BandNum[c1]:
+                            c3 = BandNum[c1]-1
+                    else:
+                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
+
+        print("Before matrices")
+        # Start filling in broadening matrices. These are massive arrays. Something will have to be done to speed this us. Learn to vectorize everything
+        for c1 in range(CalcSXSCase):
+            for c3 in range(BroadSXSCount[0][c1]):
+                width = BroadSXS[4][c3][0][c1] / 2.3548 # This is the variance of the Gaussian Distribution
+                position = BroadSXS[0][c3][0][c1] # This is the centroid of the Gaussian Distribution
+                for c4 in range(BroadSXSCount[0][c1]):
+                    Gauss[c3][c4] = 1/np.sqrt(2*Pi*width*width)*np.exp(-(BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)/2/width/width)
+
+                width = disord / 2.3548
+                position = BroadSXS[0][c3][0][c1]
+                for c4 in range(BroadSXSCount[0][c1]):
+                    Disorder[c3][c4] = 1/np.sqrt(2*Pi*width*width)*np.exp(-(BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)/2/width/width)
+
+                width = BroadSXS[2][c3][0][c1] / 2 # This is the variance of the Lorentzian Distribution
+                position = BroadSXS[0][c3][0][c1]
+                for c4 in range(BroadSXSCount[0][c1]):
+                    Lorentz[c3][c4] = 1/Pi*(width / ((BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)+(width*width)))
+            
+            for c3 in range(BroadSXSCount[0][c1]): # Line 899
+                BroadSXS[3][c3][0][c1] = 0
+            for c2 in range(BroadSXSCount[0][c1]):
+                for c3 in range(BroadSXSCount[0][c1]):
+                    BroadSXS[3][c2][0][c1] = BroadSXS[3][c2][0][c1] + (Lorentz[c3][c2] * BroadSXS[1][c3][0][c1] * (BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
+            for c3 in range(BroadSXSCount[0][c1]): # Line 910
+                BroadSXS[6][c3][0][c1] = 0
+            for c2 in range(BroadSXSCount[0][c1]):
+                for c3 in range(BroadSXSCount[0][c1]):
+                    BroadSXS[6][c2][0][c1] = BroadSXS[6][c2][0][c1] + (Gauss[c3][c2] * BroadSXS[3][c3][0][c1] * (BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
+        print("After matrices")
+        return
+
     def initParam(self, fermi, fermis, binds, edge):
         """
         Parameters
@@ -276,5 +363,39 @@ class Broaden():
         Fermis = fermis # Might have to change this so that you keep the size of the arrays the same.
         Binds = binds
         Edge = edge
+        #TODO, put these parameters into loadCalc preferably. Same way that sites is being done
 
+        return
+
+    def initResolution(self, XEScorelife, specResolution, monoResolution, disorder, XESscaling, XASscaling):
+        """
+        Parameters
+        ----------
+        XEScorelife : float
+            Specify the corehole lifetime broadening factor
+        specResolution : float
+            Specify spectrometer resolving power
+        monoResolution : float
+            Specify monochromator resolving power
+        disorder : float
+            Specify disorder factor
+        XESscaling : float
+            Specify corehole lifetime scaling factor for XES
+        XASscaling : float
+            Specify corehole lifetime scaling factor for XAS
+        """
+        global corelifeXES
+        global corelifeXAS
+        global spec
+        global mono
+        global disord
+        global XESscale
+        global scaleXAS
+        corelifeXES = XEScorelife
+        corelifeXAS = XEScorelife
+        spec = specResolution
+        mono = monoResolution
+        disord = disorder
+        XESscale = XESscaling
+        scaleXAS = XASscaling
         return
