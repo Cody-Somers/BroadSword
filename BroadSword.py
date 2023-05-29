@@ -1,7 +1,9 @@
 
-import numpy as np
-import pandas as pd
+import ctypes as C
 from ctypes import *
+import numpy as np
+import numpy.ctypeslib as npc
+import pandas as pd
 from reixs.LoadData import *
 
 
@@ -312,9 +314,32 @@ class Broaden():
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
         
         mylib = cdll.LoadLibrary('./libmatrices.so')
-        funnth = mylib.test()
-        mylib.broadXAS.argtype = [c_int, c_int, c_float, c_float]
-        clu = mylib.broadXAS(CalcSXSCase, byref(BroadSXSCount), BroadSXS, disord)
+
+        cCalcSXSCase = C.c_int(CalcSXSCase)
+        
+        cBroadSXSCount = (C.c_int*40*3)()
+        for c1 in range(3):
+            for c2 in range(40):
+                cBroadSXSCount[c1][c2] = BroadSXSCount[c1][c2]
+        
+        cBroadSXS = (C.c_float*40*3*3500*7)()
+        for c1 in range(7):
+            for c2 in range(3500):
+                for c3 in range(3):
+                    for c4 in range(40):
+                        cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
+        
+        cdisord = C.c_float(disord)
+
+        mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
+
+        #mylib.test.restype = npc.ndpointer(dtype=C.c_int, shape=(3,40))
+        #mylib.test.argtypes = [POINTER(C.c_int*x*y)]
+        #funnth = mylib.test(C.byref(ls))
+        #mylib.broadXAS.restype = ndpointer(dtype=C.c_int, shape=(3,40))
+        #mylib.broadXAS.argtype = [c_int, c_int, c_float, c_float]
+        #clu = mylib.broadXAS(CalcSXSCase, byref(BroadSXSCount), BroadSXS, disord)
+        #clu = mylib.broadXAS(Test, BroadSXSCount, BroadSXS, disord)
         print("Before matrices")
 
         """

@@ -3,16 +3,27 @@
 #include <math.h>
 
 int main(){    
-printf("Hello C Language How? \n");    
+printf("Hello C's Language How? \n");    
 return 0;   
 }
 
-int test(){
+int test(int BroadSXSCount[3][40]){
     printf("You did it! \n");
     return 0;
 }
 
-float * broadXAS(int CalcSXSCase, int BroadSXSCount[3][40], float BroadSXS[7][3500][3][40], float disord){
+int sum(int arr[10][10], int n) {
+    int sum = 0;
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < n; j++){
+            sum += arr[i][j];
+        }
+    }
+    printf("You did it in sum! \n");
+    return sum;
+}
+
+int broadXAS(int CalcSXSCase, int BroadSXSCount[3][40], float BroadSXS[7][3500][3][40], float disord){
     float Gauss[3500][3500]; //This stores the Gauss broadening matrix for each spectrum
     float Lorentz[3500][3500]; //This stores the Lorentz broadening matrix for each spectrum
     float Disorder[3500][3500]; //This stores the disorder broadening matrix for each spectrum
@@ -146,5 +157,5 @@ float * broadXAS(int CalcSXSCase, int BroadSXSCount[3][40], float BroadSXS[7][35
             }
         }
     }
-    return BroadSXS;
+    return 0;
 }
