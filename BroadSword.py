@@ -331,8 +331,10 @@ class Broaden():
                         cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
         
         cdisord = C.c_float(disord) 
-
-        mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
+        print(cBroadSXS[1][1600][0][0])
+        testing = mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
+        print(cBroadSXS[1][1600][0][0])
+        print(testing)
         
         print("After")
         #mylib.test.restype = npc.ndpointer(dtype=C.c_int, shape=(3,40))
