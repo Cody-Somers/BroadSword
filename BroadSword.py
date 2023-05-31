@@ -313,8 +313,9 @@ class Broaden():
                     else:
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
         
+        print("Before")
         mylib = cdll.LoadLibrary('./libmatrices.so')
-
+        mylib.main()
         cCalcSXSCase = C.c_int(CalcSXSCase)
         
         cBroadSXSCount = (C.c_int*40*3)()
@@ -329,10 +330,11 @@ class Broaden():
                     for c4 in range(40):
                         cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
         
-        cdisord = C.c_float(disord)
+        cdisord = C.c_float(disord) 
 
         mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
-
+        
+        print("After")
         #mylib.test.restype = npc.ndpointer(dtype=C.c_int, shape=(3,40))
         #mylib.test.argtypes = [POINTER(C.c_int*x*y)]
         #funnth = mylib.test(C.byref(ls))
@@ -340,40 +342,6 @@ class Broaden():
         #mylib.broadXAS.argtype = [c_int, c_int, c_float, c_float]
         #clu = mylib.broadXAS(CalcSXSCase, byref(BroadSXSCount), BroadSXS, disord)
         #clu = mylib.broadXAS(Test, BroadSXSCount, BroadSXS, disord)
-        print("Before matrices")
-
-        """
-        # Start filling in broadening matrices. These are massive arrays. Something will have to be done to speed this us. Learn to vectorize everything
-        for c1 in range(CalcSXSCase):
-            print("Here")
-            for c3 in range(BroadSXSCount[0][c1]):
-                width = BroadSXS[4][c3][0][c1] / 2.3548 # This is the variance of the Gaussian Distribution
-                position = BroadSXS[0][c3][0][c1] # This is the centroid of the Gaussian Distribution
-                for c4 in range(BroadSXSCount[0][c1]):
-                    Gauss[c3][c4] = 1/np.sqrt(2*Pi*width*width)*np.exp(-(BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)/2/width/width)
-
-                width = disord / 2.3548
-                position = BroadSXS[0][c3][0][c1]
-                for c4 in range(BroadSXSCount[0][c1]):
-                    Disorder[c3][c4] = 1/np.sqrt(2*Pi*width*width)*np.exp(-(BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)/2/width/width)
-
-                width = BroadSXS[2][c3][0][c1] / 2 # This is the variance of the Lorentzian Distribution
-                position = BroadSXS[0][c3][0][c1]
-                for c4 in range(BroadSXSCount[0][c1]):
-                    Lorentz[c3][c4] = 1/Pi*(width / ((BroadSXS[0][c4][0][c1]-position) * (BroadSXS[0][c4][0][c1]-position)+(width*width)))
-            print("There")
-            for c3 in range(BroadSXSCount[0][c1]): # Line 899
-                BroadSXS[3][c3][0][c1] = 0
-            for c2 in range(BroadSXSCount[0][c1]):
-                for c3 in range(BroadSXSCount[0][c1]):
-                    BroadSXS[3][c2][0][c1] = BroadSXS[3][c2][0][c1] + (Lorentz[c3][c2] * BroadSXS[1][c3][0][c1] * (BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
-            for c3 in range(BroadSXSCount[0][c1]): # Line 910
-                BroadSXS[6][c3][0][c1] = 0
-            for c2 in range(BroadSXSCount[0][c1]):
-                for c3 in range(BroadSXSCount[0][c1]):
-                    BroadSXS[6][c2][0][c1] = BroadSXS[6][c2][0][c1] + (Gauss[c3][c2] * BroadSXS[3][c3][0][c1] * (BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
-        """
-        print("After matrices")
         return
 
     def initParam(self, fermi, fermis, binds, edge):
