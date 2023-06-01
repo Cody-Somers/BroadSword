@@ -7,26 +7,8 @@ float Lorentz[3500][3500]; //This stores the Lorentz broadening matrix for each 
 float Disorder[3500][3500]; //This stores the disorder broadening matrix for each spectrum
 
 int main(){    
-    printf("Hello C's Language How? \n");
     printf("Well done \n");
     return 0;   
-}
-
-int test(int CalcSXSCase, int BroadSXSCount[3][40], float BroadSXS[7][3500][3][40], float disord){
-    printf("You did it! \n");
-    printf("You made it here \n");
-    return 0;
-}
-
-int sum(int arr[10][10], int n) {
-    int sum = 0;
-    for (int i = 0; i < n; i++){
-        for (int j = 0; j < n; j++){
-            sum += arr[i][j];
-        }
-    }
-    printf("You did it in sum! \n");
-    return sum;
 }
 
 int broadXAS(int CalcSXSCase, int BroadSXSCount[3][40], float BroadSXS[7][3500][3][40], float disord){ 

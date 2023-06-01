@@ -15,7 +15,8 @@ from reixs.LoadData import *
 # ['XES, XAS, or XANES'] = [0=XES,1=XAS,2=XANES]
 ExpSXS = np.zeros([2,1500,2]) # Experimental Spectra ['Column']['Row']['XES or XANES']
 CalcSXS = np.zeros([2,3500,3,40]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
+#BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
+BroadSXS = (C.c_float*40*3*3500*7)() 
 SumSXS = np.zeros([2,3500,3]) # Total Summed Spectra
 Gauss = np.zeros([3500,3500]) # Gauss broadening matrix for each spectrum
 Lorentz = np.zeros([3500,3500]) # Lorentz broadening matrix for each spectrum
@@ -252,7 +253,7 @@ class Broaden():
         for c3 in range(3):
             for c1 in range(CalcSXSCase):
                 for c2 in range(BroadSXSCount[c3][c1]):
-                    BroadSXS[1][c2][c3][c1] = BroadSXS[1][c2][c3][c1]*(BroadSXS[0][c2][c1][c1]/Econ)
+                    BroadSXS[1][c2][c3][c1] = BroadSXS[1][c2][c3][c1]*(BroadSXS[0][c2][c3][c1]/Econ)
         global BandGap
         BandGap = Econ - Eval
         print(BandGap)
@@ -261,9 +262,6 @@ class Broaden():
     def broaden(self):
         Econd = np.zeros(40)
         type = False
-        width = 0
-        position = 0
-        Pi = 3.14159265
         energy_0 = 20
 
         if XESscale != 0:
@@ -312,28 +310,28 @@ class Broaden():
                             c3 = BandNum[c1]-1
                     else:
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
-        
-        print("Before")
-        mylib = cdll.LoadLibrary('./libmatrices.so')
 
+        mylib = cdll.LoadLibrary('./libmatrices.so')
         cCalcSXSCase = C.c_int(CalcSXSCase)
-        
+
         cBroadSXSCount = (C.c_int*40*3)()
         for c1 in range(3):
             for c2 in range(40):
                 cBroadSXSCount[c1][c2] = BroadSXSCount[c1][c2]
         
-        cBroadSXS = (C.c_float*40*3*3500*7)() # There might be a way to speed this up so that it doesn't take as long
-        for c1 in range(7):
-            for c2 in range(3500):
-                for c3 in range(3):
-                    for c4 in range(40):
-                        cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
+        #cBroadSXS = (C.c_float*40*3*3500*7)() # There might be a way to speed this up so that it doesn't take as long
+        #for c1 in range(7):
+        #    for c2 in range(3500):
+        #        for c3 in range(3):
+        #            for c4 in range(40):
+        #                cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
         
-        print("Between")
-        cdisord = C.c_float(disord) 
-        mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
-        print("After")
+        #tBroadSXS = BroadSXS.ctypes.data_as(c_float)
+        cdisord = C.c_float(disord)
+        print(BroadSXS[0][2000][1][0])
+        print(BroadSXS[1][2000][1][0])
+        mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,BroadSXS,cdisord)
+        print(BroadSXS[6][2000][1][0])
         return
 
     def initParam(self, fermi, fermis, binds, edge):
