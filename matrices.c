@@ -36,7 +36,6 @@ int broadXAS(int CalcSXSCase, int BroadSXSCount[3][40], float BroadSXS[7][3500][
     float width; //This is a dynamic variable the captures the width used in the distribution function
     float position; //This a dynamic variable used to store the centre of the distribution function
     float Pi = 3.14159265; //The Pi constant used for the distribution functions.
-
     for(c1=0; c1< CalcSXSCase; c1++)
     {
         for(c3 = 0; c3 < BroadSXSCount[0][c1]; c3++) //This cycles through the matrix rows

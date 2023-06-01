@@ -315,7 +315,7 @@ class Broaden():
         
         print("Before")
         mylib = cdll.LoadLibrary('./libmatrices.so')
-        mylib.main()
+
         cCalcSXSCase = C.c_int(CalcSXSCase)
         
         cBroadSXSCount = (C.c_int*40*3)()
@@ -323,27 +323,17 @@ class Broaden():
             for c2 in range(40):
                 cBroadSXSCount[c1][c2] = BroadSXSCount[c1][c2]
         
-        cBroadSXS = (C.c_float*40*3*3500*7)()
+        cBroadSXS = (C.c_float*40*3*3500*7)() # There might be a way to speed this up so that it doesn't take as long
         for c1 in range(7):
             for c2 in range(3500):
                 for c3 in range(3):
                     for c4 in range(40):
                         cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
         
+        print("Between")
         cdisord = C.c_float(disord) 
-        print(cBroadSXS[1][1600][0][0])
-        testing = mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
-        print(cBroadSXS[1][1600][0][0])
-        print(testing)
-        
+        mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,cBroadSXS,cdisord)
         print("After")
-        #mylib.test.restype = npc.ndpointer(dtype=C.c_int, shape=(3,40))
-        #mylib.test.argtypes = [POINTER(C.c_int*x*y)]
-        #funnth = mylib.test(C.byref(ls))
-        #mylib.broadXAS.restype = ndpointer(dtype=C.c_int, shape=(3,40))
-        #mylib.broadXAS.argtype = [c_int, c_int, c_float, c_float]
-        #clu = mylib.broadXAS(CalcSXSCase, byref(BroadSXSCount), BroadSXS, disord)
-        #clu = mylib.broadXAS(Test, BroadSXSCount, BroadSXS, disord)
         return
 
     def initParam(self, fermi, fermis, binds, edge):
