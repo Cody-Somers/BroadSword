@@ -277,7 +277,7 @@ class Broaden():
         print(BandGap)
         return
 
-    def broaden(self):
+    def broaden(self, libpath="./"):
         Econd = np.zeros(40)
         type = False
         energy_0 = 20
@@ -330,7 +330,7 @@ class Broaden():
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
 
         #mylib = cdll.LoadLibrary('./libmatrices.so')
-        mylib = cdll.LoadLibrary(os.path.abspath("libmatrices.so"))
+        mylib = cdll.LoadLibrary(libpath + "libmatrices.so")
         cCalcSXSCase = C.c_int(CalcSXSCase)
 
         cBroadSXSCount = (C.c_int*40*3)()
