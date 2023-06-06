@@ -4,7 +4,6 @@ from ctypes import *
 import numpy as np
 import numpy.ctypeslib as npc
 import pandas as pd
-from reixs.LoadData import *
 
 
 # These are the input and output spectra of type float
@@ -47,15 +46,16 @@ bands_temp_count = np.zeros([40,40],dtype=int)
 BandGap = 0
 
 class Broaden():
-    """Class to take in data and broaden it.
+    """
+    Class to take in data and broaden it.
     We have to load the experimental, and then load the calculations. With the calculations we can load multiple different sets of files
     so that we account for the different sites that can exist. Just call the loadCalc function multiple times and it should account for the diffent sites.
     """
 
     def __init__(self):
-        self.data = list()
+        self.data = list() # Why is this here?
 
-    def loadExp(self, basedir, XES, XANES):
+    def loadExp(self, basedir, XES, XANES, fermi):
         """
         Parameters
         ----------
@@ -63,6 +63,8 @@ class Broaden():
             Specifiy the absolute or relative path to experimental data.
         XES, XANES : string
             Specify the file name (ASCII).
+        fermi : float
+            Specify the fermi energy for the ground state calculated spectra
         """
 
         with open(basedir+"/"+XES, "r") as xesFile:
@@ -82,9 +84,14 @@ class Broaden():
                 ExpSXS[1][c1][1] = df[1][c1] # Counts
                 c1 += 1
             ExpSXSCount[1] = c1 # Length
+        
+        global CalcSXSCase
+        global Fermi
+        CalcSXSCase = 0
+        Fermi = fermi
         return
 
-    def loadCalc(self, basedir, XES, XAS, XANES, sites=1):
+    def loadCalc(self, basedir, XES, XAS, XANES, fermis, binds, edge="K", sites=1):
         """
         Parameters
         ----------
@@ -92,6 +99,12 @@ class Broaden():
             Specifiy the absolute or relative path to experimental data.
         XES, XAS, XANES : string
             Specify the file name (.txspec).
+        fermis : float
+            Specify the fermi energy for the excited state calculation
+        bind : float
+            Specify the binding energy of the ground state
+        edge : string
+            Specify the excitation edge "K","L2","L3","M4","M5"
         """
         global CalcSXSCase
         global Site
@@ -123,6 +136,10 @@ class Broaden():
                 c1 += 1
             CalcSXSCount[2][CalcSXSCase] = c1 # Length for each Site
 
+        # Update the global variables with the parameters for that site.
+        Fermis[CalcSXSCase] = fermis
+        Binds[CalcSXSCase] = binds
+        Edge[CalcSXSCase] = edge
         Site[CalcSXSCase] = sites
         CalcSXSCase += 1
         return
@@ -334,31 +351,6 @@ class Broaden():
         print(BroadSXS[6][2000][1][0])
         return
 
-    def initParam(self, fermi, fermis, binds, edge):
-        """
-        Parameters
-        ----------
-        fermi : float
-            Specify the fermi energy for the ground state spectra
-        fermis : [float] A list of floats
-            Specify the fermi energy for all of the excited state calculations
-        bind : [float] A list of floats
-            Specify the binding energy of the ground states for each site
-        edge : [String] A list of strings
-            Specify the excitation edges
-        """
-        global Fermi
-        global Fermis
-        global Binds
-        global Edge
-        Fermi = fermi
-        Fermis = fermis # Might have to change this so that you keep the size of the arrays the same.
-        Binds = binds
-        Edge = edge
-        #TODO, put these parameters into loadCalc preferably. Same way that sites is being done
-
-        return
-
     def initResolution(self, XEScorelife, specResolution, monoResolution, disorder, XESscaling, XASscaling):
         """
         Parameters
@@ -390,4 +382,8 @@ class Broaden():
         disord = disorder
         XESscale = XESscaling
         scaleXAS = XASscaling
+        return
+    
+    def add():
+        # TODO: Need to add this function from original c file.
         return
