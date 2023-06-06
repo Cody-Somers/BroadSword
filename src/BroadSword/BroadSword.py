@@ -330,7 +330,11 @@ class Broaden():
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
 
         #mylib = cdll.LoadLibrary('./libmatrices.so')
-        mylib = cdll.LoadLibrary(libpath + "libmatrices.so")
+        try:
+            mylib = cdll.LoadLibrary(libpath + "libmatrices.so")
+        except:
+            mylib = cdll.LoadLibrary(libpath + "libmatrices.dylib")
+        
         cCalcSXSCase = C.c_int(CalcSXSCase)
 
         cBroadSXSCount = (C.c_int*40*3)()
@@ -386,6 +390,6 @@ class Broaden():
         scaleXAS = XASscaling
         return
     
-    def add():
+    def add(self):
         # TODO: Need to add this function from original c file.
         return
