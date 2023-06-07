@@ -453,10 +453,26 @@ class Broaden():
                     SumSXSCount[c1] = max
         return
     
-    def plotExp(self):
+    def plotTest(self):
+        x = [1, 3, 5, 7]
+        y = [2, 4, 6, 8]
+
         p = figure()
-        p.line(ExpSXS[0,:,0], ExpSXS[1,:,0]) # XES plot
-        p.line(ExpSXS[0,:,1], ExpSXS[1,:,1]) # XANES plot
+        p.circle(x, y, size=10, color='red', legend='circle')
+        p.line(x, y, color='blue', legend='line')
+        p.triangle(y, x, color='gold', size=10, legend='triangle')
+        return
+
+    def plotExp(self):
+        xanesX = np.zeros([1500])
+        xanesY = np.zeros([1500])
+        p = figure()
+        for c1 in range(ExpSXSCount[1]):
+            xanesX[c1] = ExpSXS[0][c1][1]
+            xanesY[c1] = ExpSXS[1][c1][1]
+        p.line(xanesX,xanesY) # XANES plot
+        #p.line(ExpSXS[0,:,0], ExpSXS[1,:,0]) # XES plot
+        #p.line(ExpSXS[0,:,1], ExpSXS[1,:,1]) # XANES plot
         return
     
     def plotCalc(self):
