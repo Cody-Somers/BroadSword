@@ -1,10 +1,20 @@
 
 import ctypes as C
 from ctypes import *
-import os
 import numpy as np
 import numpy.ctypeslib as npc
 import pandas as pd
+from reixs.LoadData import *
+
+# Plotting
+from bokeh.io import push_notebook
+from bokeh.plotting import show, figure
+from bokeh.models import ColumnDataSource, HoverTool, LinearColorMapper, LogColorMapper, ColorBar, Span, Label
+
+# Widgets
+import ipywidgets as widgets
+from IPython.display import display
+from ipyfilechooser import FileChooser
 
 
 # These are the input and output spectra of type float
@@ -361,6 +371,7 @@ class Broaden():
         print(BroadSXS[1][2000][1][0])
         mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,BroadSXS,cdisord)
         print(BroadSXS[6][2000][1][0])
+        self.add()
         return
 
     def initResolution(self, XEScorelife, specResolution, monoResolution, disorder, XESscaling, XASscaling):
@@ -397,5 +408,76 @@ class Broaden():
         return
     
     def add(self):
-        # TODO: Need to add this function from original c file.
+        Edge_check = ["K","L2","L3","M4","M5"]
+        Edge_scale = [1,0.3333333,0.6666667,0.4,0.6]
+        max = 0
+        for c1 in range(CalcSXSCase):
+            for c2 in range(3):
+                scalar[c2][c1] = 1
+
+        for c1 in range(CalcSXSCase): # Line 1159
+            for c2 in range(5):
+                if Edge[c1] == Edge_check[c2]:
+                    for c3 in range(3):
+                        scalar[c3][c1] = scalar[c3][c1]*Site[c1]*Edge_scale[c2]
+        
+        for c1 in range(3): # Line 1175
+            first = 0
+            value = BroadSXS[0][0][c1][0]
+            c2 = 1
+            while c2 < CalcSXSCase:
+                if BroadSXS[0][0][c1][c2] >= value:
+                    first = c2
+                c2 += 1
+            
+            for c3 in range(BroadSXSCount[c1][first]):
+                SumSXS[0][c3][c1] = BroadSXS[0][c3][c1][first]
+                SumSXS[1][c3][c1] = scalar[c1][first]*BroadSXS[6][c3][c1][first]
+
+            SumSXSCount[c1] = c3
+
+            for c2 in range(CalcSXSCase):
+                if c2 != first:
+                    for c3 in range(SumSXSCount[c1]):
+                        for c4 in range(BroadSXSCount[c1][c2]):
+                            if BroadSXS[0][c4][c1][c2] > SumSXS[0][c3][c1]:
+                                x1 = BroadSXS[0][c4-1][c1][c2]
+                                x2 = BroadSXS[0][c4][c1][c2]
+                                y1 = BroadSXS[6][c4-1][c1][c2]
+                                y2 = BroadSXS[6][c4][c1][c2]
+                                slope = (y2-y1)/(x2-x1)
+                                SumSXS[1][c3][c1] = SumSXS[1][c3][c1] + scalar[c1][c2]*(slope*(SumSXS[0][c3][c1]-x1)+y1)
+                                c4 = 9999999
+                                max = c3
+
+                    SumSXSCount[c1] = max
+        return
+    
+    def plotExp(self):
+        p = figure()
+        p.line(ExpSXS[0,:,0], ExpSXS[1,:,0]) # XES plot
+        p.line(ExpSXS[0,:,1], ExpSXS[1,:,1]) # XANES plot
+        return
+    
+    def plotCalc(self):
+        p = figure()
+        for c1 in range(CalcSXSCase):
+            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]) # XES plot
+            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1]) # XAS plot
+            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1]) # XANES plot
+        return
+
+    def plotShiftCalc(self):
+        p = figure()
+        for c1 in range(CalcSXSCase):
+            p.line(BroadSXS[0,:,0,c1], BroadSXS[1,:,0,c1]) # XES plot
+            p.line(BroadSXS[0,:,1,c1], BroadSXS[1,:,1,c1]) # XAS plot
+            p.line(BroadSXS[0,:,2,c1], BroadSXS[1,:,2,c1]) # XANES plot
+        return
+    
+    def plotBroadCalc(self):
+        p = figure()
+        p.line(SumSXS[0,:,0], SumSXS[1,:,0]) # XES plot
+        p.line(SumSXS[0,:,1], SumSXS[1,:,1]) # XAS plot
+        p.line(SumSXS[0,:,2], SumSXS[1,:,2]) # XANES plot
         return
