@@ -332,9 +332,15 @@ class Broaden():
         #mylib = cdll.LoadLibrary('./libmatrices.so')
         try:
             mylib = cdll.LoadLibrary(libpath + "libmatrices.so")
-        except:
-            mylib = cdll.LoadLibrary(libpath + "libmatrices.dylib")
-        
+        except OSError:
+            try:
+                mylib = cdll.LoadLibrary(libpath + "libmatrices_ARM64.dylib")
+            except OSError:
+                try:
+                    mylib = cdll.LoadLibrary(libpath + "libmatrices_x86_64.dylib")
+                except OSError:
+                    print("Use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
+
         cCalcSXSCase = C.c_int(CalcSXSCase)
 
         cBroadSXSCount = (C.c_int*40*3)()
