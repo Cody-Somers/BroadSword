@@ -1,0 +1,57 @@
+Found in .scfc
+Binding Energy
+Ground State
+N1 -27.176237
+N2 -27.177975
+N3 -27.122234
+N4 -27.177070
+P1 -8.3827211 for p orbital (not p*)
+P2 -8.3943992 for p orbital (not p*)
+
+Don't Use these below for Binding Energy.
+Half CoreHole
+N1 -29.270587
+N2 -29.277099
+N3 -29.224473
+N4 -29.273805
+
+Full CoreHole
+P1 -10.156978
+P2 -10.162424
+
+3Quarter CoreHole
+P1 -9.7134159 for p orbital
+P2 -9.7209069 for p orbital
+
+Half CoreHole
+P1 -9.2698273
+P2 -9.279038303
+
+
+
+
+Found in .scf2
+Fermi Energy
+Ground State
+FER = 0.44996547
+
+Half CoreHole
+N1 0.45062079
+N2 0.45091878
+N3 0.45090808
+N4 0.45088602
+
+Full CoreHole
+P1 0.45619197
+P2 0.45630557
+
+3Quarter Corehole
+P1 0.453589873
+P2 0.453503499
+
+Half CoreHole
+P1 0.4512567863
+P2 0.4511192448
+
+Defect
+N1 0.5306233621
