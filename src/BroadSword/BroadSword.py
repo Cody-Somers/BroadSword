@@ -37,6 +37,7 @@ CalcSXSCase = 0
 CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
 BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
 SumSXSCount = np.zeros([3],dtype=int)
+MaxCalcSXS = np.zeros([3,40])
 
 # These store data for generating the broadening criteria
 scaleXES = np.zeros([40,50])
@@ -120,30 +121,36 @@ class Broaden():
         global CalcSXSCase
         global Site
 
-        with open(basedir+"/"+XES, "r") as xesFile:
+        with open(basedir+"/"+XES, "r") as xesFile: # XES Calculation
             df = pd.read_csv(xesFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
                 CalcSXS[0][c1][0][CalcSXSCase] = df[0][c1] # Energy
                 CalcSXS[1][c1][0][CalcSXSCase] = df[1][c1] # Counts
+                if MaxCalcSXS[0][CalcSXSCase] < df[1][c1]:
+                    MaxCalcSXS[0][CalcSXSCase] = df[1][c1]
                 c1 += 1
             CalcSXSCount[0][CalcSXSCase] = c1 # Length for each Site
 
-        with open(basedir+"/"+XAS, "r") as xasFile:
+        with open(basedir+"/"+XAS, "r") as xasFile: # XAS Calculation
             df = pd.read_csv(xasFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
                 CalcSXS[0][c1][1][CalcSXSCase] = df[0][c1] # Energy
                 CalcSXS[1][c1][1][CalcSXSCase] = df[1][c1] # Counts
+                if MaxCalcSXS[1][CalcSXSCase] < df[1][c1]:
+                    MaxCalcSXS[1][CalcSXSCase] = df[1][c1]
                 c1 += 1
             CalcSXSCount[1][CalcSXSCase] = c1 # Length for each Site
 
-        with open(basedir+"/"+XANES, "r") as xanesFile:
+        with open(basedir+"/"+XANES, "r") as xanesFile: # XANES Calculation
             df = pd.read_csv(xanesFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
                 CalcSXS[0][c1][2][CalcSXSCase] = df[0][c1] # Energy
                 CalcSXS[1][c1][2][CalcSXSCase] = df[1][c1] # Counts
+                if MaxCalcSXS[2][CalcSXSCase] < df[1][c1]:
+                    MaxCalcSXS[2][CalcSXSCase] = df[1][c1]
                 c1 += 1
             CalcSXSCount[2][CalcSXSCase] = c1 # Length for each Site
 
@@ -285,6 +292,10 @@ class Broaden():
         global BandGap
         BandGap = Econ - Eval
         print(BandGap)
+        p = figure()
+        self.plotShiftCalc(p)
+        self.plotExp(p)
+        show(p)
         return
 
     def broaden(self, libpath="./"):
@@ -348,8 +359,9 @@ class Broaden():
             except OSError:
                 try:
                     mylib = cdll.LoadLibrary(libpath + "libmatrices_x86_64.dylib")
-                except OSError:
+                except OSError as e:
                     print("Use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
+                    print(e)
 
         cCalcSXSCase = C.c_int(CalcSXSCase)
 
@@ -456,44 +468,75 @@ class Broaden():
     def plotTest(self):
         x = [1, 3, 5, 7]
         y = [2, 4, 6, 8]
-
+        print("This changed")
         p = figure()
-        p.circle(x, y, size=10, color='red', legend='circle')
-        p.line(x, y, color='blue', legend='line')
-        p.triangle(y, x, color='gold', size=10, legend='triangle')
+        p.circle(x, y, size=10, color='red')
+        p.line(x, y, color='blue')
+        p.triangle(y, x, color='gold', size=10)
+        show(p)
         return
 
-    def plotExp(self):
-        xanesX = np.zeros([1500])
-        xanesY = np.zeros([1500])
-        p = figure()
-        for c1 in range(ExpSXSCount[1]):
+    def plotExp(self,p):
+        xesX = np.zeros([ExpSXSCount[0]])
+        xesY = np.zeros([ExpSXSCount[0]])
+        xanesX = np.zeros([ExpSXSCount[1]])
+        xanesY = np.zeros([ExpSXSCount[1]])
+
+        for c1 in range(ExpSXSCount[0]): # Experimental xes spectra
+            xesX[c1] = ExpSXS[0][c1][0]
+            xesY[c1] = ExpSXS[1][c1][0]
+        
+        for c1 in range(ExpSXSCount[1]): # Experimental xanes spectra
             xanesX[c1] = ExpSXS[0][c1][1]
             xanesY[c1] = ExpSXS[1][c1][1]
+        
+        #p = figure()
         p.line(xanesX,xanesY) # XANES plot
-        #p.line(ExpSXS[0,:,0], ExpSXS[1,:,0]) # XES plot
-        #p.line(ExpSXS[0,:,1], ExpSXS[1,:,1]) # XANES plot
+        p.line(xesX,xesY) # XES plot
+        #show(p)
+        return
+
+    def plotShiftCalc(self,p):
+        #p = figure()
+        for c1 in range(CalcSXSCase):
+            calcxesX = np.zeros([CalcSXSCount[0][c1]])
+            calcxesY = np.zeros([CalcSXSCount[0][c1]])
+            calcxasX = np.zeros([CalcSXSCount[1][c1]])
+            calcxasY = np.zeros([CalcSXSCount[1][c1]])
+            calcxanesX = np.zeros([CalcSXSCount[2][c1]])
+            calcxanesY = np.zeros([CalcSXSCount[2][c1]])
+            for c2 in range(CalcSXSCount[0][c1]): # Calculated XES spectra
+                calcxesX[c2] = BroadSXS[0][c2][0][c1]
+                calcxesY[c2] = BroadSXS[1][c2][0][c1] / (MaxCalcSXS[0][c1]) # This normalization doesn't work perfectly. The amplitude changes somewhere going into broadsxs
+                #y = (x - x_min) / (x_max - x_min) Where x_min = 0
+
+            for c2 in range(CalcSXSCount[1][c1]): # Calculated XAS spectra
+                calcxasX[c2] = BroadSXS[0][c2][1][c1]
+                calcxasY[c2] = BroadSXS[1][c2][1][c1] / (MaxCalcSXS[1][c1])
+
+            for c2 in range(CalcSXSCount[2][c1]): # Calculated XANES spectra
+                calcxanesX[c2] = BroadSXS[0][c2][2][c1]
+                calcxanesY[c2] = BroadSXS[1][c2][2][c1] / (MaxCalcSXS[2][c1])
+            colour = COLORP[c1]
+            p.line(calcxesX,calcxesY,line_color=colour) # XES plot
+            #p.line(calcxasX,calcxasY,line_color=colour) # XAS plot is not needed for lining up the spectra. Use XANES
+            p.line(calcxanesX,calcxanesY,line_color=colour) # XANES plot
+        #show(p)
         return
     
     def plotCalc(self):
         p = figure()
-        for c1 in range(CalcSXSCase):
-            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]) # XES plot
-            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1]) # XAS plot
-            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1]) # XANES plot
+        for c1 in range(CalcSXSCase): # Since this is np array you can use :
+            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]/ (MaxCalcSXS[0][c1])) # XES plot
+            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1]/ (MaxCalcSXS[1][c1])) # XAS plot
+            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1]/ (MaxCalcSXS[2][c1])) # XANES plot
+        show(p)
         return
 
-    def plotShiftCalc(self):
-        p = figure()
-        for c1 in range(CalcSXSCase):
-            p.line(BroadSXS[0,:,0,c1], BroadSXS[1,:,0,c1]) # XES plot
-            p.line(BroadSXS[0,:,1,c1], BroadSXS[1,:,1,c1]) # XAS plot
-            p.line(BroadSXS[0,:,2,c1], BroadSXS[1,:,2,c1]) # XANES plot
-        return
-    
     def plotBroadCalc(self):
         p = figure()
         p.line(SumSXS[0,:,0], SumSXS[1,:,0]) # XES plot
         p.line(SumSXS[0,:,1], SumSXS[1,:,1]) # XAS plot
         p.line(SumSXS[0,:,2], SumSXS[1,:,2]) # XANES plot
+        show(p)
         return
