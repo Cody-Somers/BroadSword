@@ -40,8 +40,6 @@ CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arr
 BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
 #SumSXSCount = np.zeros([3],dtype=int)
 SumSXSCount = (C.c_int*3)()
-MaxCalcSXS = np.zeros([3,40])
-MaxBroadSXS = np.zeros([3])
 
 # These store data for generating the broadening criteria
 scaleXES = np.zeros([40,50])
@@ -522,6 +520,7 @@ class Broaden():
         return
 
     def plotShiftCalc(self,p):
+        MaxCalcSXS = np.zeros([3,40])
         for c1 in range(CalcSXSCase):
             for c3 in range(3):
                 for c2 in range(CalcSXSCount[c3][c1]):
@@ -559,6 +558,7 @@ class Broaden():
         return
     
     def plotCalc(self):
+        MaxCalcSXS = np.zeros([3,40])
         p = figure()
         for c1 in range(CalcSXSCase): # Since this is np array you can use :
             p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]/ (MaxCalcSXS[0][c1])) # XES plot
@@ -568,6 +568,7 @@ class Broaden():
         return
 
     def plotBroadCalc(self,p):
+        MaxBroadSXS = np.zeros([3])
         for c3 in range(3):
             for c2 in range(SumSXSCount[c3]):
                 if MaxBroadSXS[c3] < SumSXS[1][c2][c3]:
