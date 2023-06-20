@@ -31,11 +31,11 @@ broad.loadCalc(".","N1_emis.txspec","N1_abs.txspec","N1_half.txspec",0.45062079,
 broad.loadCalc(".","N2_emis.txspec","N2_abs.txspec","N2_half.txspec",0.45091878,27.177975)
 broad.loadCalc(".","N3_emis.txspec","N3_abs.txspec","N3_half.txspec",0.45090808,27.122234)
 broad.loadCalc(".","N4_emis.txspec","N4_abs.txspec","N4_half.txspec",0.45088602,27.177070)
-broad.FindBands()
-broad.Shift(19.2,20.2)
 broad.initResolution(0.15,1200,5000,0.5,0.5,0.5)
+broad.Shift(19.2,20.2)
 #broad.broaden()
 broad.broaden("/Users/cas003/opt/anaconda3/lib/python3.9/site-packages/BroadSword/")
+broad.export("Nitrogen")
 ```
 
 ### Functions
@@ -44,10 +44,14 @@ loadExp(base directory, measured XES spectrum, measured XANES spectrum, calculat
 
 loadCalc(base directory, calculated XES spectrum, calculated XAS spectrum, calculated XANES spectrum, calculated excited state fermi energy, calculated ground state binding energy)
 
-FindBands() Will be depreciated
-
 Shift(XAS shift, XES shift)
 
 initResolution(XES corehole lifetime, spectrometer resolution, monochromator resolution, disorder, XES corehole lifetime scaling, XAS corehole lifetime scaling)
 
 broaden(Path to .so or .dylib file)
+
+export(File name)
+
+### Comments
+
+Shifting takes ~1s to plot, so shift the unbroadened spectra first until it is in the proper position. Then include broad.broaden() in the notebook since this can take ~30s to compute.
