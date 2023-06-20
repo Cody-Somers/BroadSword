@@ -4,6 +4,7 @@ from ctypes import *
 import numpy as np
 import numpy.ctypeslib as npc
 import pandas as pd
+import csv
 from reixs.LoadData import *
 
 # Plotting
@@ -27,7 +28,8 @@ ExpSXS = np.zeros([2,1500,2]) # Experimental Spectra ['Column']['Row']['XES or X
 CalcSXS = np.zeros([2,3500,3,40]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
 #BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
 BroadSXS = (C.c_float*40*3*3500*7)() 
-SumSXS = np.zeros([2,3500,3]) # Total Summed Spectra
+#SumSXS = np.zeros([2,3500,3]) # Total Summed Spectra
+SumSXS = (C.c_float*3*3500*2)() 
 Gauss = np.zeros([3500,3500]) # Gauss broadening matrix for each spectrum
 Lorentz = np.zeros([3500,3500]) # Lorentz broadening matrix for each spectrum
 Disorder = np.zeros([3500,3500]) # Disorder broadening matrix for each spectrum
@@ -36,7 +38,10 @@ ExpSXSCount = np.zeros([2],dtype=int) # Stores number of elements in the arrays
 CalcSXSCase = 0
 CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
 BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
-SumSXSCount = np.zeros([3],dtype=int)
+#SumSXSCount = np.zeros([3],dtype=int)
+SumSXSCount = (C.c_int*3)()
+MaxCalcSXS = np.zeros([3,40])
+MaxBroadSXS = np.zeros([3])
 
 # These store data for generating the broadening criteria
 scaleXES = np.zeros([40,50])
@@ -47,7 +52,9 @@ Fermis = np.zeros([40])
 Binds = np.zeros([40])
 shiftXES = np.zeros([40,50])
 scalar = np.zeros([3,40])
-Edge = np.zeros([40],dtype=str)
+# Edge = np.zeros([40],dtype=str)
+Edge = []
+# Edge = ["" for x in range(40)]
 Site = np.zeros([40])
 
 # Misc
@@ -98,7 +105,9 @@ class Broaden():
         
         global CalcSXSCase
         global Fermi
+        global Edge
         CalcSXSCase = 0
+        Edge = []
         Fermi = fermi
         return
 
@@ -120,7 +129,7 @@ class Broaden():
         global CalcSXSCase
         global Site
 
-        with open(basedir+"/"+XES, "r") as xesFile:
+        with open(basedir+"/"+XES, "r") as xesFile: # XES Calculation
             df = pd.read_csv(xesFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
@@ -129,7 +138,7 @@ class Broaden():
                 c1 += 1
             CalcSXSCount[0][CalcSXSCase] = c1 # Length for each Site
 
-        with open(basedir+"/"+XAS, "r") as xasFile:
+        with open(basedir+"/"+XAS, "r") as xasFile: # XAS Calculation
             df = pd.read_csv(xasFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
@@ -138,7 +147,7 @@ class Broaden():
                 c1 += 1
             CalcSXSCount[1][CalcSXSCase] = c1 # Length for each Site
 
-        with open(basedir+"/"+XANES, "r") as xanesFile:
+        with open(basedir+"/"+XANES, "r") as xanesFile: # XANES Calculation
             df = pd.read_csv(xanesFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
@@ -150,7 +159,7 @@ class Broaden():
         # Update the global variables with the parameters for that site.
         Fermis[CalcSXSCase] = fermis
         Binds[CalcSXSCase] = binds
-        Edge[CalcSXSCase] = edge
+        Edge.append(edge)
         Site[CalcSXSCase] = sites
         CalcSXSCase += 1
         return
@@ -189,6 +198,7 @@ class Broaden():
         XESbandshift : [float]
             Specify a shift for each individual band found in FindBands()
         """
+        self.FindBands()
         Ryd = 13.605698066 # Rydberg energy to eV
         Eval = 0 # Location of valence band
         Econ = 0 # Location of conduction band
@@ -267,7 +277,7 @@ class Broaden():
             if BroadSXS[1][c1][0][0] > 0:
                 Eval = BroadSXS[0][c1][0][0]
                 c1 = -1
-                print(Eval)
+                #print(Eval)
             c1 -= 1
 
         c1 = 0
@@ -275,7 +285,7 @@ class Broaden():
             if BroadSXS[1][c1][1][0] > 0:
                 Econ = BroadSXS[0][c1][1][0]
                 c1 = 999999
-                print(Econ)
+                #print(Econ)
             c1 += 1
 
         for c3 in range(3):
@@ -284,7 +294,16 @@ class Broaden():
                     BroadSXS[1][c2][c3][c1] = BroadSXS[1][c2][c3][c1]*(BroadSXS[0][c2][c3][c1]/Econ)
         global BandGap
         BandGap = Econ - Eval
-        print(BandGap)
+        print("BandGap = " + str(BandGap) + " eV")
+        p = figure(height=450, width=700, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                   tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+        p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+            ("(x,y)", "(Energy, Intensity)"),
+            ("(x,y)", "($x, $y)")
+        ]))
+        self.plotShiftCalc(p)
+        self.plotExp(p)
+        show(p)
         return
 
     def broaden(self, libpath="./"):
@@ -348,8 +367,12 @@ class Broaden():
             except OSError:
                 try:
                     mylib = cdll.LoadLibrary(libpath + "libmatrices_x86_64.dylib")
-                except OSError:
-                    print("Use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
+                except OSError as e:
+                    print("Download the source and use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
+                    print(e)
+
+        # These convert existing parameters into their respective ctypes. This takes very little time, but is super inefficient.
+        # Can probably change the global variable declaration so that they are existing only as c types to begin with.
 
         cCalcSXSCase = C.c_int(CalcSXSCase)
 
@@ -358,20 +381,45 @@ class Broaden():
             for c2 in range(40):
                 cBroadSXSCount[c1][c2] = BroadSXSCount[c1][c2]
         
-        #cBroadSXS = (C.c_float*40*3*3500*7)() # There might be a way to speed this up so that it doesn't take as long
-        #for c1 in range(7):
-        #    for c2 in range(3500):
-        #        for c3 in range(3):
-        #            for c4 in range(40):
-        #                cBroadSXS[c1][c2][c3][c4] = BroadSXS[c1][c2][c3][c4]
-        
-        #tBroadSXS = BroadSXS.ctypes.data_as(c_float)
         cdisord = C.c_float(disord)
-        print(BroadSXS[0][2000][1][0])
-        print(BroadSXS[1][2000][1][0])
+
+        cscalar = (C.c_float*40*3)()
+        for c1 in range(3):
+            for c2 in range(40):
+                cscalar[c1][c2] = scalar[c1][c2]
+        
+        
+        cEdge = (C.c_int*40)()
+        for c1 in range(len(Edge)):
+            if Edge[c1] == "K":
+                cEdge[c1] = 1
+            elif Edge[c1] == "L2":
+                cEdge[c1] = 2
+            elif Edge[c1] == "L3":
+                cEdge[c1] = 3
+            elif Edge[c1] == "M4":
+                cEdge[c1] = 4
+            elif Edge[c1] == "M5":
+                cEdge[c1] = 5
+            else:
+                cEdge[c1] = 1
+
+        cSite = (C.c_float*40)()
+        for c1 in range(40):
+            cSite[c1] = Site[c1]
+
         mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,BroadSXS,cdisord)
-        print(BroadSXS[6][2000][1][0])
-        self.add()
+        mylib.add(cCalcSXSCase,cscalar,cEdge,cSite,BroadSXS,cBroadSXSCount,SumSXS,SumSXSCount)
+
+        p = figure(height=450, width=700, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                   tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+        p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+            ("(x,y)", "(Energy, Intensity)"),
+            ("(x,y)", "($x, $y)")
+        ]))
+        self.plotBroadCalc(p)
+        self.plotExp(p)
+        show(p)
         return
 
     def initResolution(self, XEScorelife, specResolution, monoResolution, disorder, XESscaling, XASscaling):
@@ -452,48 +500,129 @@ class Broaden():
 
                     SumSXSCount[c1] = max
         return
-    
-    def plotTest(self):
-        x = [1, 3, 5, 7]
-        y = [2, 4, 6, 8]
 
-        p = figure()
-        p.circle(x, y, size=10, color='red', legend='circle')
-        p.line(x, y, color='blue', legend='line')
-        p.triangle(y, x, color='gold', size=10, legend='triangle')
-        return
+    def plotExp(self,p):
+        xesX = np.zeros([ExpSXSCount[0]])
+        xesY = np.zeros([ExpSXSCount[0]])
+        xanesX = np.zeros([ExpSXSCount[1]])
+        xanesY = np.zeros([ExpSXSCount[1]])
 
-    def plotExp(self):
-        xanesX = np.zeros([1500])
-        xanesY = np.zeros([1500])
-        p = figure()
-        for c1 in range(ExpSXSCount[1]):
+        for c1 in range(ExpSXSCount[0]): # Experimental xes spectra
+            xesX[c1] = ExpSXS[0][c1][0]
+            xesY[c1] = ExpSXS[1][c1][0]
+        
+        for c1 in range(ExpSXSCount[1]): # Experimental xanes spectra
             xanesX[c1] = ExpSXS[0][c1][1]
             xanesY[c1] = ExpSXS[1][c1][1]
-        p.line(xanesX,xanesY) # XANES plot
-        #p.line(ExpSXS[0,:,0], ExpSXS[1,:,0]) # XES plot
-        #p.line(ExpSXS[0,:,1], ExpSXS[1,:,1]) # XANES plot
+        
+        #p = figure()
+        p.line(xanesX,xanesY,line_color="red") # XANES plot
+        p.line(xesX,xesY,line_color="red") # XES plot
+        #show(p)
+        return
+
+    def plotShiftCalc(self,p):
+        for c1 in range(CalcSXSCase):
+            for c3 in range(3):
+                for c2 in range(CalcSXSCount[c3][c1]):
+                    if MaxCalcSXS[c3][c1] < BroadSXS[1][c2][c3][c1]:
+                        MaxCalcSXS[c3][c1] = BroadSXS[1][c2][c3][c1]
+        #p = figure()
+        for c1 in range(CalcSXSCase):
+            calcxesX = np.zeros([CalcSXSCount[0][c1]])
+            calcxesY = np.zeros([CalcSXSCount[0][c1]])
+            calcxasX = np.zeros([CalcSXSCount[1][c1]])
+            calcxasY = np.zeros([CalcSXSCount[1][c1]])
+            calcxanesX = np.zeros([CalcSXSCount[2][c1]])
+            calcxanesY = np.zeros([CalcSXSCount[2][c1]])
+            for c2 in range(CalcSXSCount[0][c1]): # Calculated XES spectra
+                calcxesX[c2] = BroadSXS[0][c2][0][c1]
+                calcxesY[c2] = BroadSXS[1][c2][0][c1] / (MaxCalcSXS[0][c1]) # This normalization doesn't work perfectly. The amplitude changes somewhere going into broadsxs
+                #y = (x - x_min) / (x_max - x_min) Where x_min = 0
+
+            for c2 in range(CalcSXSCount[1][c1]): # Calculated XAS spectra
+                calcxasX[c2] = BroadSXS[0][c2][1][c1]
+                calcxasY[c2] = BroadSXS[1][c2][1][c1] / (MaxCalcSXS[1][c1])
+
+            for c2 in range(CalcSXSCount[2][c1]): # Calculated XANES spectra
+                calcxanesX[c2] = BroadSXS[0][c2][2][c1]
+                calcxanesY[c2] = BroadSXS[1][c2][2][c1] / (MaxCalcSXS[2][c1])
+            colour = COLORP[c1]
+
+            if colour == "#d60000": # So that there are no red spectra since the experimental is red
+                colour = "Magenta"
+                
+            p.line(calcxesX,calcxesY,line_color=colour) # XES plot
+            #p.line(calcxasX,calcxasY,line_color=colour) # XAS plot is not needed for lining up the spectra. Use XANES
+            p.line(calcxanesX,calcxanesY,line_color=colour) # XANES plot
+        #show(p)
         return
     
     def plotCalc(self):
         p = figure()
-        for c1 in range(CalcSXSCase):
-            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]) # XES plot
-            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1]) # XAS plot
-            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1]) # XANES plot
+        for c1 in range(CalcSXSCase): # Since this is np array you can use :
+            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]/ (MaxCalcSXS[0][c1])) # XES plot
+            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1]/ (MaxCalcSXS[1][c1])) # XAS plot
+            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1]/ (MaxCalcSXS[2][c1])) # XANES plot
+        show(p)
         return
 
-    def plotShiftCalc(self):
-        p = figure()
-        for c1 in range(CalcSXSCase):
-            p.line(BroadSXS[0,:,0,c1], BroadSXS[1,:,0,c1]) # XES plot
-            p.line(BroadSXS[0,:,1,c1], BroadSXS[1,:,1,c1]) # XAS plot
-            p.line(BroadSXS[0,:,2,c1], BroadSXS[1,:,2,c1]) # XANES plot
+    def plotBroadCalc(self,p):
+        for c3 in range(3):
+            for c2 in range(SumSXSCount[c3]):
+                if MaxBroadSXS[c3] < SumSXS[1][c2][c3]:
+                    MaxBroadSXS[c3] = SumSXS[1][c2][c3]
+        #p = figure()
+        sumxesX = np.zeros([SumSXSCount[0]])
+        sumxesY = np.zeros([SumSXSCount[0]])
+        sumxasX = np.zeros([SumSXSCount[1]])
+        sumxasY = np.zeros([SumSXSCount[1]])
+        sumxanesX = np.zeros([SumSXSCount[2]])
+        sumxanesY = np.zeros([SumSXSCount[2]])
+        for c2 in range(SumSXSCount[0]): # Calculated XES spectra
+            sumxesX[c2] = SumSXS[0][c2][0]
+            sumxesY[c2] = SumSXS[1][c2][0] / MaxBroadSXS[0]
+
+        for c2 in range(SumSXSCount[1]): # Calculated XAS spectra
+            sumxasX[c2] = SumSXS[0][c2][1]
+            sumxasY[c2] = SumSXS[1][c2][1] / MaxBroadSXS[1]
+
+        for c2 in range(SumSXSCount[2]): # Calculated XANES spectra
+            sumxanesX[c2] = SumSXS[0][c2][2]
+            sumxanesY[c2] = SumSXS[1][c2][2] / MaxBroadSXS[2]
+
+        p.line(sumxesX,sumxesY,line_color="limegreen") # XES plot
+        p.line(sumxasX,sumxasY,line_color="blue") # XAS plot
+        p.line(sumxanesX,sumxanesY,line_color="limegreen") # XANES plot
+        #show(p)
         return
-    
-    def plotBroadCalc(self):
-        p = figure()
-        p.line(SumSXS[0,:,0], SumSXS[1,:,0]) # XES plot
-        p.line(SumSXS[0,:,1], SumSXS[1,:,1]) # XAS plot
-        p.line(SumSXS[0,:,2], SumSXS[1,:,2]) # XANES plot
-        return
+
+
+    def export(self, filename):
+        """
+        Export and write data to specified file.
+
+        Parameters
+        ----------
+        filename : string
+        """
+
+        with open(f"{filename}_XES.csv", 'w', newline='') as f:
+            writer = csv.writer(f,delimiter=" ")
+            writer.writerow(["Energy","XES"])
+            for c1 in range(SumSXSCount[0]):
+                writer.writerow([SumSXS[0][c1][0],SumSXS[1][c1][0]])
+
+        with open(f"{filename}_XAS.csv", 'w', newline='') as f:
+            writer = csv.writer(f,delimiter=" ")
+            writer.writerow(["Energy","XAS"])
+            for c1 in range(SumSXSCount[1]):
+                writer.writerow([SumSXS[0][c1][1],SumSXS[1][c1][1]])
+
+        with open(f"{filename}_XANES.csv", 'w', newline='') as f:
+            writer = csv.writer(f,delimiter=" ")
+            writer.writerow(["Energy","XANES"])
+            for c1 in range(SumSXSCount[2]):
+                writer.writerow([SumSXS[0][c1][2],SumSXS[1][c1][2]])
+
+        print(f"Successfully wrote DataFrame to {filename}.csv")
