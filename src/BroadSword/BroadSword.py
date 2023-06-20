@@ -246,15 +246,15 @@ class Broaden():
                         bands_temp[c4][c2][c1] = BroadSXS[1][c3][0][c1]
                         BroadSXS[1][c3][0][c1] = 0
                         c3 += 1
-                        c4 +=1
+                        c4 += 1
                     bands_temp_count[c1][c2] = c4
                     c2 += 1
                     if c2 >= BandNum[c1]:
-                        c3 = 99999
+                        c3 = 999999
                 c3 += 1
 
         for c1 in range(CalcSXSCase):
-            for c2 in range(2,BandNum[c1]): # Line 570
+            for c2 in range(1,BandNum[c1]): # Line 570
                 c3 = 0
                 while c3 < BroadSXSCount[0][c1]:
                     if BroadSXS[0][c3][0][c1] >= (Bands[c2][c1][0] + bandshift[c1][c2]):
@@ -263,7 +263,7 @@ class Broaden():
                             BroadSXS[1][c3][0][c1] = bands_temp[c4][c2][c1]
                             c4 += 1
                             c3 += 1
-                        c3 = 99999
+                        c3 = 999999
                     c3 += 1
         
         for c1 in range(CalcSXSCase):
