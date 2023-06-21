@@ -34,25 +34,24 @@ Gauss = np.zeros([3500,3500]) # Gauss broadening matrix for each spectrum
 Lorentz = np.zeros([3500,3500]) # Lorentz broadening matrix for each spectrum
 Disorder = np.zeros([3500,3500]) # Disorder broadening matrix for each spectrum
 
-ExpSXSCount = np.zeros([2],dtype=int) # Stores number of elements in the arrays
+ExpSXSCount = np.zeros([2],dtype=int) # Stores number of elements in the arrays of Experimental data
 CalcSXSCase = 0
-CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
-BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays
+CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays of Calculated data
+BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays of Shifted/Intermediate data
 #SumSXSCount = np.zeros([3],dtype=int)
-SumSXSCount = (C.c_int*3)()
+SumSXSCount = (C.c_int*3)() # Store number of elements in the arrays of Final Data
 
 # These store data for generating the broadening criteria
 scaleXES = np.zeros([40,50])
-Bands = np.zeros([50,40,2])
+Bands = np.zeros([50,40,2]) 
 BandNum = np.zeros([40],dtype=int)
-Fermi = 0
-Fermis = np.zeros([40])
-Binds = np.zeros([40])
+Fermi = 0 # Ground state fermi energy
+Fermis = np.zeros([40]) # Excited state fermi energy for each inequivalent site
+Binds = np.zeros([40]) # Ground statet binding energy for each inequivalent site
 shiftXES = np.zeros([40,50])
 scalar = np.zeros([3,40])
 # Edge = np.zeros([40],dtype=str)
 Edge = []
-# Edge = ["" for x in range(40)]
 Site = np.zeros([40])
 
 # Misc
@@ -63,9 +62,9 @@ BandGap = 0
 
 class Broaden():
     """
-    Class to take in data and broaden it.
-    We have to load the experimental, and then load the calculations. With the calculations we can load multiple different sets of files
-    so that we account for the different sites that can exist. Just call the loadCalc function multiple times and it should account for the diffent sites.
+    Class designed to take in calculated spectral data, align it with experimental data, then broaden it appropriately.
+    First: Load the experimental. Second: Load all of the calculations sequentially. 
+    Third: Generate the parameters used for shifting and broadening. Finally: Broaden the spectra.
     """
 
     def __init__(self):
@@ -73,59 +72,65 @@ class Broaden():
 
     def loadExp(self, basedir, XES, XANES, fermi):
         """
+        Loads the experimental data.
+
         Parameters
         ----------
         basedir : string
             Specifiy the absolute or relative path to experimental data.
         XES, XANES : string
-            Specify the file name (ASCII).
+            Specify the file name (ASCII) including the extension.
+            Reminder that there is no header allowed in this file.
         fermi : float
-            Specify the fermi energy for the ground state calculated spectra
+            Specify the fermi energy for the ground state calculated spectra. Found in .scf2
         """
 
-        with open(basedir+"/"+XES, "r") as xesFile:
+        with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
             df = pd.read_csv(xesFile, delimiter='\s+',header=None) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook
             c1 = 0
             for i in range(len(df)): 
                 ExpSXS[0][c1][0] = df[0][c1] # Energy
                 ExpSXS[1][c1][0] = df[1][c1] # Counts
                 c1 += 1
-            ExpSXSCount[0] = c1 # Length
+            ExpSXSCount[0] = c1 # Length of data points
 
-        with open(basedir+"/"+XANES, "r") as xanesFile:
+        with open(basedir+"/"+XANES, "r") as xanesFile: # Measured XANES
             df = pd.read_csv(xanesFile, delimiter='\s+',header=None)
             c1 = 0
             for i in range(len(df)):
                 ExpSXS[0][c1][1] = df[0][c1] # Energy
                 ExpSXS[1][c1][1] = df[1][c1] # Counts
                 c1 += 1
-            ExpSXSCount[1] = c1 # Length
+            ExpSXSCount[1] = c1 # Length of data points
         
         global CalcSXSCase
         global Fermi
         global Edge
-        CalcSXSCase = 0
+        CalcSXSCase = 0 # Stores number of calculated inequivalent sites
         Edge = []
         Fermi = fermi
         return
 
     def loadCalc(self, basedir, XES, XAS, XANES, fermis, binds, edge="K", sites=1):
         """
+        Loads the calculated data.
+        
         Parameters
         ----------
         basedir : string
             Specifiy the absolute or relative path to experimental data.
         XES, XAS, XANES : string
-            Specify the file name (.txspec).
+            Specify the file name including the extension (.txspec).
         fermis : float
-            Specify the fermi energy for the excited state calculation
-        bind : float
-            Specify the binding energy of the ground state
+            Specify the fermi energy for the excited state calculation. Found in .scf2
+        binds : float
+            Specify the binding energy of the ground state. Found in .scfc
         edge : string
-            Specify the excitation edge "K","L2","L3","M4","M5"
+            Specify the excitation edge "K","L2","L3","M4","M5".
+        sites : float
+            Specify the number of atomic positions present in the inequivalent site.
         """
         global CalcSXSCase
-        global Site
 
         with open(basedir+"/"+XES, "r") as xesFile: # XES Calculation
             df = pd.read_csv(xesFile, delimiter='\s+',header=None)
@@ -162,9 +167,14 @@ class Broaden():
         CalcSXSCase += 1
         return
 
-    def FindBands(self): # Perhaps change the while loops to for in range()
+    def FindBands(self): 
+        """
+        Finds the number of bands present in the calculated data.
+        Bands are where the calculated data hits zero.
+        """
+        # The while loops can be changed to "for in range()"
         c1 = 0
-        while c1 < CalcSXSCase: # For each site (.loadCalc)
+        while c1 < CalcSXSCase: # For each site (number of .loadCalc)
             starter = False
             c3 = 0
             c2 = 0
@@ -183,48 +193,61 @@ class Broaden():
             c1 += 1
         return
     
+    def printBands(self):
+        """
+        Prints the value of the band start and end locations, then plots the unshifted spectra.
+        """
+        self.FindBands()
+        for c1 in range(CalcSXSCase):
+            print("In inequivalent atom #" + str(c1))
+            for c2 in range(BandNum[c1]):
+                print("Band #" + str(c2) + " is located at " + str(Bands[c2][c1][0]) + " to " + str(Bands[c2][c1][1]))
+        print("Reminder that these values are unshifted by the binding and fermi energies")
+        self.plotCalc()
+        return
+    
     def Shift(self,XESshift, XASshift, XESbandshift=0):
         """
-        This will shift the files initially when uploaded, then by user specifed shifts to XES and XAS until alligned with experimental spectra.
+        This will shift the files initially based on binding and fermi energy, then by user specifed shifts to XES and XAS 
+        until alligned with experimental spectra.
 
         Parameters
         ----------
         XESshift : float
-            Specify a constant shift to the entire XES spectrum
+            Specify a constant shift to the entire XES spectrum in eV.
         XASshift : float
-            Specify a constant shift to the entire XAS spectrum
+            Specify a constant shift to the entire XAS spectrum in eV.
         XESbandshift : [float]
-            Specify a shift for each individual band found in FindBands()
+            Specify a shift for each individual band found in printBands().
+            Should be in the format of [[Bands in inequivalent atom 0] , [Bands in inequivalent atom 2], [Bands in inequivalent atom 3]]
+            For example, with 2 inequivalent site and 3 bands in each site: [[17, 18, 18] , [16.5, 18, 18]]
+            In atom 1 this shifts the first band by 17 and the other two by 18. In atom 2 it shifts first by 16.5 and the other by 18.
         """
         self.FindBands()
         Ryd = 13.605698066 # Rydberg energy to eV
         Eval = 0 # Location of valence band
         Econ = 0 # Location of conduction band
-        if XESshift != 0: # Constant shift to all bands
+        if XESbandshift == 0: # Constant shift to all bands
             for c1 in range(CalcSXSCase):
                 for c2 in range(BandNum[c1]):
                     shiftXES[c1][c2] = XESshift
         else: # Shift bands separately.
             for c1 in range(CalcSXSCase):
                 for c2 in range(BandNum[c1]):
-                    shiftXES[c1][c2] = XESshift 
-                    #TODO This is something that should be done eventually, but has low usage
-                    # Need to figure out how to get the individual shifts to work.
-                    # Perhaps this could be put into the .loadCalc so that they.
-                    # I would need to call find bands in .loadCalc and then print them out. Not a big issue rn.
+                    shiftXES[c1][c2] = XESbandshift[c1][c2]
 
         shiftXAS = XASshift
         for c1 in range(CalcSXSCase): # This goes through the XAS spectra
-            for c2 in range(CalcSXSCount[1][c1]): #Line 504
+            for c2 in range(CalcSXSCount[1][c1]): # Line 504
                 BroadSXS[1][c2][1][c1] = CalcSXS[1][c2][1][c1] # Counts from calc go into Broad
                 BroadSXSCount[1][c1] = CalcSXSCount[1][c1]
-                BroadSXS[0][c2][1][c1] = CalcSXS[0][c2][1][c1] + shiftXAS + (Binds[c1]+Fermi) * Ryd # Shift the energy of XAS appropriately
+                BroadSXS[0][c2][1][c1] = CalcSXS[0][c2][1][c1] + shiftXAS + (Binds[c1]+Fermi) * Ryd # Shift the energy of XAS based on binding, fermi energy, and user input
         
         for c1 in range(CalcSXSCase): # This goes through the XANES spectra
-            for c2 in range(CalcSXSCount[2][c1]): #Line 514
+            for c2 in range(CalcSXSCount[2][c1]): # Line 514
                 BroadSXS[1][c2][2][c1] = CalcSXS[1][c2][2][c1] # Counts from calc go into Broad
                 BroadSXSCount[2][c1] = CalcSXSCount[2][c1]
-                BroadSXS[0][c2][2][c1] = CalcSXS[0][c2][2][c1] + shiftXAS + (Binds[c1]+Fermis[c1]) * Ryd # Shift the energy of XANES appropriately
+                BroadSXS[0][c2][2][c1] = CalcSXS[0][c2][2][c1] + shiftXAS + (Binds[c1]+Fermis[c1]) * Ryd # Shift the energy of XANES based on binding, fermi energy, and user input
 
         for c1 in range(CalcSXSCase): # If there are a different shift between bands find that difference
             for c2 in range(BandNum[c1]): # Line 526
@@ -236,11 +259,11 @@ class Broaden():
                 BroadSXS[0][c2][0][c1] = CalcSXS[0][c2][0][c1] + bandshift[c1][0] # Still confused why bandshift[c1][0] is here. Always zero
                 BroadSXS[1][c2][0][c1] = CalcSXS[1][c2][0][c1]
 
-        for c1 in range(CalcSXSCase): # No idea why this is here
+        for c1 in range(CalcSXSCase): # Not entirely sure the purpose of the next portion of code
             c2 = 1 # Line 544
             c3 = 0
             while c3 < BroadSXSCount[0][c1]:
-                if BroadSXS[0][c3][0][c1] >= (Bands[c2][c1][0]+bandshift[c1][0]):
+                if BroadSXS[0][c3][0][c1] >= (Bands[c2][c1][0] + bandshift[c1][0]):
                     c4 = 0
                     while BroadSXS[1][c3][0][c1] != 0:
                         bands_temp[c4][c2][c1] = BroadSXS[1][c3][0][c1]
@@ -268,31 +291,32 @@ class Broaden():
         
         for c1 in range(CalcSXSCase):
             for c2 in range(BroadSXSCount[0][c1]): # Line 592
-                BroadSXS[0][c2][0][c1] = BroadSXS[0][c2][0][c1] + shiftXES[c1][0] + (Binds[c1]+Fermi) * Ryd
+                BroadSXS[0][c2][0][c1] = BroadSXS[0][c2][0][c1] + shiftXES[c1][0] + (Binds[c1]+Fermi) * Ryd # Shift XES spectra based on binding, fermi energy, and user input
 
         c1 = BroadSXSCount[0][0]-1
-        while c1 >= 0:
+        while c1 >= 0: # Starts from the top and moves down until it finds the point where the valence band != 0
             if BroadSXS[1][c1][0][0] > 0:
                 Eval = BroadSXS[0][c1][0][0]
                 c1 = -1
-                #print(Eval)
             c1 -= 1
 
         c1 = 0
-        while c1 < BroadSXSCount[1][0]:
+        while c1 < BroadSXSCount[1][0]: # Starts from the bottom and moves up until it finds the point where the conduction bands != 0
             if BroadSXS[1][c1][1][0] > 0:
                 Econ = BroadSXS[0][c1][1][0]
                 c1 = 999999
-                #print(Econ)
             c1 += 1
 
         for c3 in range(3):
             for c1 in range(CalcSXSCase):
                 for c2 in range(BroadSXSCount[c3][c1]):
-                    BroadSXS[1][c2][c3][c1] = BroadSXS[1][c2][c3][c1]*(BroadSXS[0][c2][c3][c1]/Econ)
+                    BroadSXS[1][c2][c3][c1] = BroadSXS[1][c2][c3][c1] * (BroadSXS[0][c2][c3][c1] / Econ)
+        
         global BandGap
-        BandGap = Econ - Eval
+        BandGap = Econ - Eval # Calculate the band gap
         print("BandGap = " + str(BandGap) + " eV")
+
+        # Create the figure for plotting shifted spectra
         p = figure(height=450, width=700, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
                    tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
         p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
@@ -305,16 +329,30 @@ class Broaden():
         return
 
     def broaden(self, libpath="./"):
+        """
+        This will take the shifted calculated spectra and broaden it based on the lifetime, instrument, and general disorder broadening.
+        It creates a series of gaussians and lorentzians before applying it to the spectra appropriately.
+
+        Parameters
+        ----------
+        libpath : string
+            Path location of the .so or .dylib files. Ex: "/Users/cas003/opt/anaconda3/lib/python3.9/site-packages/BroadSword/"
+            If compiling from source put the path of the install folder. 
+            If using "pip install" make a note of where it installed the program and copy that directory path here.
+        """
+
         Econd = np.zeros(40)
         type = False
         energy_0 = 20
 
-        if XESscale != 0:
+        if XESbandScale == 0: # Applying a singular scale to XES
             for c1 in range(CalcSXSCase):
                 for c2 in range(BandNum[c1]):
                     scaleXES[c1][c2] = XESscale
-        else:
-            return # TODO implement the band where you can scale individually. Same as up above problem with the shifting.
+        else: # Applying scale to individual bands in XES
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BandNum[c1]):
+                    scaleXES[c1][c2] = XESbandScale[c1][c2]
         
         for c1 in range(CalcSXSCase): # Line 791
             c2 = 0
@@ -356,7 +394,8 @@ class Broaden():
                     else:
                         BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
 
-        #mylib = cdll.LoadLibrary('./libmatrices.so')
+        # Three different compilations of the .c file exist as c code has to be compiled based on the operating system that runs it.
+        # TODO: There is currently no file that exists for windows OS
         try:
             mylib = cdll.LoadLibrary(libpath + "libmatrices.so")
         except OSError:
@@ -365,9 +404,14 @@ class Broaden():
             except OSError:
                 try:
                     mylib = cdll.LoadLibrary(libpath + "libmatrices_x86_64.dylib")
-                except OSError as e:
-                    print("Download the source and use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
-                    print(e)
+                except OSError:
+                    try:
+                        mylib = cdll.LoadLibrary(libpath)
+                    except OSError as e:
+                        print("Download the source and use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
+                        print("If compiling from source the pathname can include the filename. Ex: '/Users/cas003/opt/anaconda3/lib/python3.9/site-packages/BroadSword/MYLIBRARY.so' ")
+                        print("No file currently exists for Windows OS (.dll).")
+                        print(e)
 
         # These convert existing parameters into their respective ctypes. This takes very little time, but is super inefficient.
         # Can probably change the global variable declaration so that they are existing only as c types to begin with.
@@ -386,9 +430,8 @@ class Broaden():
             for c2 in range(40):
                 cscalar[c1][c2] = scalar[c1][c2]
         
-        
         cEdge = (C.c_int*40)()
-        for c1 in range(len(Edge)):
+        for c1 in range(len(Edge)): # Convert the strings into integers to make it easier when transferring to the c program
             if Edge[c1] == "K":
                 cEdge[c1] = 1
             elif Edge[c1] == "L2":
@@ -406,9 +449,11 @@ class Broaden():
         for c1 in range(40):
             cSite[c1] = Site[c1]
 
+        # Here we call the command to run program contained within the .c file
         mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,BroadSXS,cdisord)
         mylib.add(cCalcSXSCase,cscalar,cEdge,cSite,BroadSXS,cBroadSXSCount,SumSXS,SumSXSCount)
 
+        # Creating the figure for plotting the broadened data.
         p = figure(height=450, width=700, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
                    tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
         p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
@@ -420,8 +465,10 @@ class Broaden():
         show(p)
         return
 
-    def initResolution(self, XEScorelife, specResolution, monoResolution, disorder, XESscaling, XASscaling):
+    def initResolution(self, corelifetime, specResolution, monoResolution, disorder, XESscaling, XASscaling, XESbandScaling=0):
         """
+        Specify the parameters for the broadening criteria.
+
         Parameters
         ----------
         XEScorelife : float
@@ -431,75 +478,41 @@ class Broaden():
         monoResolution : float
             Specify monochromator resolving power
         disorder : float
-            Specify disorder factor
+            Specify general disorder factor in the sample
         XESscaling : float
             Specify corehole lifetime scaling factor for XES
         XASscaling : float
             Specify corehole lifetime scaling factor for XAS
+        XESbandScaling : [float]
         """
-        global corelifeXES
+        global corelifeXES # A terrible way to do this, but it works.
         global corelifeXAS
         global spec
         global mono
         global disord
         global XESscale
         global scaleXAS
-        corelifeXES = XEScorelife
-        corelifeXAS = XEScorelife
+        global XESbandScale
+        corelifeXES = corelifetime
+        corelifeXAS = corelifetime
         spec = specResolution
         mono = monoResolution
         disord = disorder
         XESscale = XESscaling
         scaleXAS = XASscaling
-        return
-    
-    def add(self):
-        Edge_check = ["K","L2","L3","M4","M5"]
-        Edge_scale = [1,0.3333333,0.6666667,0.4,0.6]
-        max = 0
-        for c1 in range(CalcSXSCase):
-            for c2 in range(3):
-                scalar[c2][c1] = 1
-
-        for c1 in range(CalcSXSCase): # Line 1159
-            for c2 in range(5):
-                if Edge[c1] == Edge_check[c2]:
-                    for c3 in range(3):
-                        scalar[c3][c1] = scalar[c3][c1]*Site[c1]*Edge_scale[c2]
-        
-        for c1 in range(3): # Line 1175
-            first = 0
-            value = BroadSXS[0][0][c1][0]
-            c2 = 1
-            while c2 < CalcSXSCase:
-                if BroadSXS[0][0][c1][c2] >= value:
-                    first = c2
-                c2 += 1
-            
-            for c3 in range(BroadSXSCount[c1][first]):
-                SumSXS[0][c3][c1] = BroadSXS[0][c3][c1][first]
-                SumSXS[1][c3][c1] = scalar[c1][first]*BroadSXS[6][c3][c1][first]
-
-            SumSXSCount[c1] = c3
-
-            for c2 in range(CalcSXSCase):
-                if c2 != first:
-                    for c3 in range(SumSXSCount[c1]):
-                        for c4 in range(BroadSXSCount[c1][c2]):
-                            if BroadSXS[0][c4][c1][c2] > SumSXS[0][c3][c1]:
-                                x1 = BroadSXS[0][c4-1][c1][c2]
-                                x2 = BroadSXS[0][c4][c1][c2]
-                                y1 = BroadSXS[6][c4-1][c1][c2]
-                                y2 = BroadSXS[6][c4][c1][c2]
-                                slope = (y2-y1)/(x2-x1)
-                                SumSXS[1][c3][c1] = SumSXS[1][c3][c1] + scalar[c1][c2]*(slope*(SumSXS[0][c3][c1]-x1)+y1)
-                                c4 = 9999999
-                                max = c3
-
-                    SumSXSCount[c1] = max
+        XESbandScale = XESbandScaling
         return
 
     def plotExp(self,p):
+        """
+        Plot the measured experimental data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES and XES to a figure.
+
+        Parameters
+        ----------
+        p : figure()
+            The bokeh figure needs to be created outside of the function.
+        """
         xesX = np.zeros([ExpSXSCount[0]])
         xesY = np.zeros([ExpSXSCount[0]])
         xanesX = np.zeros([ExpSXSCount[1]])
@@ -520,7 +533,17 @@ class Broaden():
         return
 
     def plotShiftCalc(self,p):
-        MaxCalcSXS = np.zeros([3,40])
+        """
+        Plot the shifted calculated data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES and XES to a figure.
+
+        Parameters
+        ----------
+        p : figure()
+            The bokeh figure needs to be created outside of the function.
+        """
+
+        MaxCalcSXS = np.zeros([3,40]) # Find the maximum value in the spectra to normalize it for plotting.
         for c1 in range(CalcSXSCase):
             for c3 in range(3):
                 for c2 in range(CalcSXSCount[c3][c1]):
@@ -536,7 +559,7 @@ class Broaden():
             calcxanesY = np.zeros([CalcSXSCount[2][c1]])
             for c2 in range(CalcSXSCount[0][c1]): # Calculated XES spectra
                 calcxesX[c2] = BroadSXS[0][c2][0][c1]
-                calcxesY[c2] = BroadSXS[1][c2][0][c1] / (MaxCalcSXS[0][c1]) # This normalization doesn't work perfectly. The amplitude changes somewhere going into broadsxs
+                calcxesY[c2] = BroadSXS[1][c2][0][c1] / (MaxCalcSXS[0][c1])
                 #y = (x - x_min) / (x_max - x_min) Where x_min = 0
 
             for c2 in range(CalcSXSCount[1][c1]): # Calculated XAS spectra
@@ -558,18 +581,30 @@ class Broaden():
         return
     
     def plotCalc(self):
-        MaxCalcSXS = np.zeros([3,40])
+        """
+        Plot the unshifted calculated data. This is purely the raw data read from .loadCalc()
+        """
         p = figure()
-        for c1 in range(CalcSXSCase): # Since this is np array you can use :
-            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1]/ (MaxCalcSXS[0][c1])) # XES plot
-            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1]/ (MaxCalcSXS[1][c1])) # XAS plot
-            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1]/ (MaxCalcSXS[2][c1])) # XANES plot
+        for c1 in range(CalcSXSCase): # Since this is np array you can use : to get all data points
+            colour = COLORP[c1]
+            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1],line_color=colour) # XES plot
+            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1],line_color=colour) # XAS plot
+            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1],line_color=colour) # XANES plot
         show(p)
         return
 
     def plotBroadCalc(self,p):
+        """
+        Plot the final calculated and broadened data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES, XAS, and XES to a figure.
+
+        Parameters
+        ----------
+        p : figure()
+            The bokeh figure needs to be created outside of the function.
+        """
         MaxBroadSXS = np.zeros([3])
-        for c3 in range(3):
+        for c3 in range(3): # Find the maximum value for normalization
             for c2 in range(SumSXSCount[c3]):
                 if MaxBroadSXS[c3] < SumSXS[1][c2][c3]:
                     MaxBroadSXS[c3] = SumSXS[1][c2][c3]
@@ -598,10 +633,10 @@ class Broaden():
         #show(p)
         return
 
-
     def export(self, filename):
         """
-        Export and write data to specified file.
+        Export and write data to the specified files.
+        This will export only the broadened data. This data has not been normalized however.
 
         Parameters
         ----------
