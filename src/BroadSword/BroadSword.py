@@ -634,3 +634,31 @@ class Broaden():
         return
 
     def export(self, filename):
+        """
+        Export and write data to the specified files.
+        This will export only the broadened data. This data has not been normalized however.
+
+        Parameters
+        ----------
+        filename : string
+        """
+
+        with open(f"{filename}_XES.csv", 'w', newline='') as f:
+            writer = csv.writer(f,delimiter=" ")
+            writer.writerow(["Energy","XES"])
+            for c1 in range(SumSXSCount[0]):
+                writer.writerow([SumSXS[0][c1][0],SumSXS[1][c1][0]])
+
+        with open(f"{filename}_XAS.csv", 'w', newline='') as f:
+            writer = csv.writer(f,delimiter=" ")
+            writer.writerow(["Energy","XAS"])
+            for c1 in range(SumSXSCount[1]):
+                writer.writerow([SumSXS[0][c1][1],SumSXS[1][c1][1]])
+
+        with open(f"{filename}_XANES.csv", 'w', newline='') as f:
+            writer = csv.writer(f,delimiter=" ")
+            writer.writerow(["Energy","XANES"])
+            for c1 in range(SumSXSCount[2]):
+                writer.writerow([SumSXS[0][c1][2],SumSXS[1][c1][2]])
+
+        print(f"Successfully wrote DataFrame to {filename}.csv")
