@@ -527,7 +527,7 @@ class Broaden():
             xanesY[c1] = ExpSXS[1][c1][1]
         
         #p = figure()
-        p.line(xanesX,xanesY,line_color="red") # XANES plot
+        p.line(xanesX,xanesY,line_color="red",legend_label="Experimental XES/XANES") # XANES plot
         p.line(xesX,xesY,line_color="red") # XES plot
         #show(p)
         return
@@ -587,9 +587,9 @@ class Broaden():
         p = figure()
         for c1 in range(CalcSXSCase): # Since this is np array you can use : to get all data points
             colour = COLORP[c1]
-            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1],line_color=colour) # XES plot
-            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1],line_color=colour) # XAS plot
-            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1],line_color=colour) # XANES plot
+            p.line(CalcSXS[0,:,0,c1], CalcSXS[1,:,0,c1],line_color=colour,legend_label="XES") # XES plot
+            p.line(CalcSXS[0,:,1,c1], CalcSXS[1,:,1,c1],line_color=colour,legend_label="XAS") # XAS plot
+            p.line(CalcSXS[0,:,2,c1], CalcSXS[1,:,2,c1],line_color=colour,legend_label="XANES") # XANES plot
         show(p)
         return
 
@@ -627,38 +627,10 @@ class Broaden():
             sumxanesX[c2] = SumSXS[0][c2][2]
             sumxanesY[c2] = SumSXS[1][c2][2] / MaxBroadSXS[2]
 
-        p.line(sumxesX,sumxesY,line_color="limegreen") # XES plot
-        p.line(sumxasX,sumxasY,line_color="blue") # XAS plot
+        p.line(sumxesX,sumxesY,line_color="limegreen",legend_label="Broadened XES/XANES") # XES plot
+        p.line(sumxasX,sumxasY,line_color="blue",legend_label="Broadened XAS") # XAS plot
         p.line(sumxanesX,sumxanesY,line_color="limegreen") # XANES plot
         #show(p)
         return
 
     def export(self, filename):
-        """
-        Export and write data to the specified files.
-        This will export only the broadened data. This data has not been normalized however.
-
-        Parameters
-        ----------
-        filename : string
-        """
-
-        with open(f"{filename}_XES.csv", 'w', newline='') as f:
-            writer = csv.writer(f,delimiter=" ")
-            writer.writerow(["Energy","XES"])
-            for c1 in range(SumSXSCount[0]):
-                writer.writerow([SumSXS[0][c1][0],SumSXS[1][c1][0]])
-
-        with open(f"{filename}_XAS.csv", 'w', newline='') as f:
-            writer = csv.writer(f,delimiter=" ")
-            writer.writerow(["Energy","XAS"])
-            for c1 in range(SumSXSCount[1]):
-                writer.writerow([SumSXS[0][c1][1],SumSXS[1][c1][1]])
-
-        with open(f"{filename}_XANES.csv", 'w', newline='') as f:
-            writer = csv.writer(f,delimiter=" ")
-            writer.writerow(["Energy","XANES"])
-            for c1 in range(SumSXSCount[2]):
-                writer.writerow([SumSXS[0][c1][2],SumSXS[1][c1][2]])
-
-        print(f"Successfully wrote DataFrame to {filename}.csv")
