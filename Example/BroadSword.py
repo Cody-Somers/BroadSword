@@ -5,6 +5,7 @@ import numpy as np
 import numpy.ctypeslib as npc
 import pandas as pd
 import csv
+import time
 from reixs.LoadData import *
 
 # Plotting
@@ -26,10 +27,10 @@ from ipyfilechooser import FileChooser
 # ['XES, XAS, or XANES'] = [0=XES,1=XAS,2=XANES]
 ExpSXS = np.zeros([2,1500,2]) # Experimental Spectra ['Column']['Row']['XES or XANES']
 CalcSXS = np.zeros([2,3500,3,40]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-#BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-BroadSXS = (C.c_float*40*3*3500*7)() 
-#SumSXS = np.zeros([2,3500,3]) # Total Summed Spectra
-SumSXS = (C.c_float*3*3500*2)() 
+BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
+#BroadSXS = (C.c_float*40*3*3500*7)() 
+SumSXS = np.zeros([2,3500,3]) # Total Summed Spectra
+#SumSXS = (C.c_float*3*3500*2)() 
 Gauss = np.zeros([3500,3500]) # Gauss broadening matrix for each spectrum
 Lorentz = np.zeros([3500,3500]) # Lorentz broadening matrix for each spectrum
 Disorder = np.zeros([3500,3500]) # Disorder broadening matrix for each spectrum
@@ -38,8 +39,8 @@ ExpSXSCount = np.zeros([2],dtype=int) # Stores number of elements in the arrays 
 CalcSXSCase = 0
 CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays of Calculated data
 BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays of Shifted/Intermediate data
-#SumSXSCount = np.zeros([3],dtype=int)
-SumSXSCount = (C.c_int*3)() # Store number of elements in the arrays of Final Data
+SumSXSCount = np.zeros([3],dtype=int)
+#SumSXSCount = (C.c_int*3)() # Store number of elements in the arrays of Final Data
 
 # These store data for generating the broadening criteria
 scaleXES = np.zeros([40,50])
@@ -206,7 +207,7 @@ class Broaden():
         self.plotCalc()
         return
     
-    def Shift(self,XESshift, XASshift, XESbandshift=0):
+    def Shift(self, XESshift, XASshift, XESbandshift=0):
         """
         This will shift the files initially based on binding and fermi energy, then by user specifed shifts to XES and XAS 
         until alligned with experimental spectra.
@@ -464,6 +465,145 @@ class Broaden():
         self.plotExp(p)
         show(p)
         return
+
+    def broaden2(self, libpath="./"):
+        """
+        This will take the shifted calculated spectra and broaden it based on the lifetime, instrument, and general disorder broadening.
+        It creates a series of gaussians and lorentzians before applying it to the spectra appropriately.
+
+        Parameters
+        ----------
+        """
+
+        Econd = np.zeros(40)
+        type = False
+        energy_0 = 20
+        Pi = 3.14159265; # The Pi constant used for the distribution functions.
+
+        if XESbandScale == 0: # Applying a singular scale to XES
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BandNum[c1]):
+                    scaleXES[c1][c2] = XESscale
+        else: # Applying scale to individual bands in XES
+            for c1 in range(CalcSXSCase):
+                for c2 in range(BandNum[c1]):
+                    scaleXES[c1][c2] = XESbandScale[c1][c2]
+        
+        for c1 in range(CalcSXSCase): # Line 791
+            c2 = 0
+            while c2 < BroadSXSCount[2][c1]:
+                if BroadSXS[1][c2][2][c1] != 0:
+                    Econd[c1] = BroadSXS[0][c2][2][c1]
+                    c2 = 999999
+                c2 += 1
+        
+        for c1 in range(CalcSXSCase): # Using scaling factor for corehole lifetime for XAS and XANES
+            for c2 in range(1,3): # Line 805
+                for c3 in range(BroadSXSCount[c2][c1]):
+                    if BroadSXS[0][c3][c2][c1] <= Econd[c1]:
+                        BroadSXS[2][c3][c2][c1] = corelifeXAS
+                    else:
+                        if BroadSXS[0][c3][c2][c1] < Econd[c1] + energy_0:
+                            BroadSXS[2][c3][c2][c1] = scaleXAS/100 * ((BroadSXS[0][c3][c2][c1]-Econd[c1]) * (BroadSXS[0][c3][c2][c1]-Econd[c1])) + corelifeXAS # Replace with **2 ??
+                        else:
+                            BroadSXS[2][c3][c2][c1] = scaleXAS/100 * (energy_0 * energy_0) + corelifeXAS
+                    BroadSXS[4][c3][c2][c1] = BroadSXS[0][c3][c2][c1] / mono
+
+        for c1 in range(CalcSXSCase): # Corehole lifetime scaling for XES
+            type = False # Line 830
+            c3 = 0
+            for c2 in range(BroadSXSCount[0][c1]):
+                BroadSXS[4][c2][0][c1] = BroadSXS[0][c2][0][c1]/spec
+                if type is False:
+                    if BroadSXS[1][c2][0][c1] != 0:
+                        type = True
+                    else:
+                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
+                if type is True:
+                    if BroadSXS[1][c2][0][c1] == 0:
+                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
+                        type = False
+                        c3 += 1
+                        if c3 > BandNum[c1]:
+                            c3 = BandNum[c1]-1
+                    else:
+                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
+
+        # Creating the broadening matrices.
+        for c1 in range(CalcSXSCase): # This is only for the XES spectra
+            start = time.perf_counter()
+            for c3 in range(BroadSXSCount[0][c1]): # Takes about 1 second to complete a full cycle of c3 * # of input files
+                width = BroadSXS[4][c3][0][c1]/2.3548; # We extract the variance for the Gaussian Distribution
+                position = BroadSXS[0][c3][0][c1]; # We extract the centroid of the Gaussian Distribution
+                Gauss[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(BroadSXS[0,:,0,c1]-position)*(BroadSXS[0,:,0,c1]-position)/2/width/width)
+
+                #width = disord/2.3548; # We extract the variance for the Gaussian Distribution
+                #position = BroadSXS[0][c3][0][c1]; # We extract the centroid of the Gaussian Distribution
+                #Disorder[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(BroadSXS[0,:,0,c1]-position)*(BroadSXS[0,:,0,c1]-position)/2/width/width)
+                # Can I remove disorder? Since does not affect this???
+                
+                width = BroadSXS[2][c3][0][c1]/2; # We extract the variance for the Gaussian Distribution
+                position = BroadSXS[0][c3][0][c1]; # We extract the centroid of the Gaussian Distribution
+                Lorentz[c3,:] = np.reciprocal(Pi)*(width/((BroadSXS[0,:,0,c1]-position)*(BroadSXS[0,:,0,c1]-position)+(width*width)))
+            
+            BroadSXS[3,:,0,c1] = 0 # Line 901
+            for c3 in range(BroadSXSCount[0][c1]):
+                BroadSXS[3,:,0,c1] = BroadSXS[3,:,0,c1]+(Lorentz[c3,:]*BroadSXS[1][c3][0][c1]*(BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
+            
+            BroadSXS[6,:,0,c1] = 0 # Line 912
+            for c3 in range(BroadSXSCount[0][c1]):
+                BroadSXS[6,:,0,c1] = BroadSXS[6,:,0,c1]+(Gauss[c3,:]*BroadSXS[3][c3][0][c1]*(BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
+
+            #BroadSXS[6,:,0,c1] = 0 # Line 924 Originally commented out in C code because disorder does not impact XES.
+            #for c4 in range(BroadSXSCount[0][c1]):
+            #    BroadSXS[6,:,0,c1] = BroadSXS[6,:,0,c1]+(Disorder[c4,:]*BroadSXS[5][c4][0][c1]*(BroadSXS[0][1][0][c1]-BroadSXS[0][0][0][c1]))
+            end = time.perf_counter()
+            print(end-start)
+            print("Hello")
+
+        for c1 in range(CalcSXSCase): # Line 938
+            for c2 in range(1,3): # TODO: Check if this is the right range. Want 1 and 2.
+                start = time.perf_counter()
+                for c3 in range(BroadSXSCount[c2][c1]): # Takes about 1 second to complete a full cycle of c3 * # of input files
+                    width = BroadSXS[4][c3][c2][c1]/2.3548; # We extract the variance for the Gaussian Distribution
+                    position = BroadSXS[0][c3][c2][c1]; # We extract the centroid of the Gaussian Distribution
+                    Gauss[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(BroadSXS[0,:,c2,c1]-position)*(BroadSXS[0,:,c2,c1]-position)/2/width/width)
+
+                    width = disord/2.3548; # We extract the variance for the Gaussian Distribution
+                    position = BroadSXS[0][c3][c2][c1]; # We extract the centroid of the Gaussian Distribution
+                    Disorder[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(BroadSXS[0,:,c2,c1]-position)*(BroadSXS[0,:,c2,c1]-position)/2/width/width)
+                    
+                    width = BroadSXS[2][c3][c2][c1]/2; # We extract the variance for the Gaussian Distribution
+                    position = BroadSXS[0][c3][c2][c1]; # We extract the centroid of the Gaussian Distribution
+                    Lorentz[c3,:] = np.reciprocal(Pi)*(width/((BroadSXS[0,:,c2,c1]-position)*(BroadSXS[0,:,c2,c1]-position)+(width*width)))
+                
+                BroadSXS[3,:,c2,c1] = 0 # Line 967
+                for c3 in range(BroadSXSCount[c2][c1]):
+                    BroadSXS[3,:,c2,c1] = BroadSXS[3,:,c2,c1]+(Lorentz[:,c3]*BroadSXS[1][c3][c2][c1]*(BroadSXS[0][1][c2][c1]-BroadSXS[0][0][c2][c1]))
+                
+                BroadSXS[5,:,c2,c1] = 0 # Line 978
+                for c3 in range(BroadSXSCount[c2][c1]):
+                    BroadSXS[5,:,c2,c1] = BroadSXS[5,:,c2,c1]+(Gauss[:,c3]*BroadSXS[3][c3][c2][c1]*(BroadSXS[0][1][c2][c1]-BroadSXS[0][0][c2][c1]))
+
+                BroadSXS[6,:,c2,c1] = 0 # Line 990
+                for c3 in range(BroadSXSCount[c2][c1]):
+                    BroadSXS[6,:,c2,c1] = BroadSXS[6,:,c2,c1]+(Disorder[c3,:]*BroadSXS[5][c3][c2][c1]*(BroadSXS[0][1][c2][c1]-BroadSXS[0][0][c2][c1]))
+                end = time.perf_counter()
+                print(end-start)
+                print("Hello2")
+
+        # Creating the figure for plotting the broadened data.
+        p = figure(height=450, width=700, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                   tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+        p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+            ("(x,y)", "(Energy, Intensity)"),
+            ("(x,y)", "($x, $y)")
+        ]))
+        self.plotBroadCalc(p)
+        self.plotExp(p)
+        show(p)
+        return
+    
 
     def initResolution(self, corelifetime, specResolution, monoResolution, disorder, XESscaling, XASscaling, XESbandScaling=0):
         """
