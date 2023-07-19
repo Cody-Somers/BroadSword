@@ -186,7 +186,6 @@ int BroadSXSCount[3][40], float SumSXS[2][3500][3], int SumSXSCount[3]){
         }
     }
 
-
     for(c1=0; c1<3; c1++)
     {
         first=0;
@@ -225,6 +224,7 @@ int BroadSXSCount[3][40], float SumSXS[2][3500][3], int SumSXSCount[3]){
                             SumSXS[1][c3][c1] = SumSXS[1][c3][c1] + scalar[c1][c2]*(slope*(SumSXS[0][c3][c1]-x1)+y1);
                             c4=9999999;
                             max=c3;
+                            printf("This is c3=%d c4=%d x1=%f slope=%f \n", c3,c4,x1,slope);
                         }
                     }
                 }
