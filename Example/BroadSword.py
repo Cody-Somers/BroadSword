@@ -82,8 +82,10 @@ class Broaden():
         XES, XANES : string
             Specify the file name (ASCII or .csv) including the extension.
             Header lines are allowed, as long as they are specified properly in the function.
-        fermi : float
+        GS_fermi : float
             Specify the fermi energy for the ground state calculated spectra. Found in .scf2
+        headerlines : [int]
+            Specify the number of headerlines for the XES and XANES files respectively. 
         """
 
         with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
@@ -135,6 +137,8 @@ class Broaden():
             Specify the excitation edge "K","L2","L3","M4","M5".
         sites : float
             Specify the number of atomic positions present in the inequivalent site.
+        headerlines : [int]
+            Specify the number of headerlines for the XES and XANES files respectively. 
         """
         global CalcSXSCase
         global Fermi
@@ -233,6 +237,8 @@ class Broaden():
             Should be in the format of [[Bands in inequivalent atom 0] , [Bands in inequivalent atom 2], [Bands in inequivalent atom 3]]
             For example, with 2 inequivalent site and 3 bands in each site: [[17, 18, 18] , [16.5, 18, 18]]
             In atom 1 this shifts the first band by 17 and the other two by 18. In atom 2 it shifts first by 16.5 and the other by 18.
+        separate : True/False
+            Specify whether or not to create a separate output plot of XES and XAS
         """
         self.FindBands()
         Ryd = 13.605698066 # Rydberg energy to eV
@@ -371,6 +377,7 @@ class Broaden():
         """
         This will take the shifted calculated spectra and broaden it based on the lifetime, instrument, and general disorder broadening.
         It creates a series of gaussians and lorentzians before applying it to the spectra appropriately.
+        Depreciated Function: Currently not usable, but can easily be reinstated by changing the globals back to ctypes.
 
         Parameters
         ----------
@@ -511,6 +518,8 @@ class Broaden():
 
         Parameters
         ----------
+        separate : True/False
+            Specify whether or not to create a separate output plot of XES and XAS
         """
 
         Econd = np.zeros(40)
@@ -662,6 +671,10 @@ class Broaden():
         return
 
     def add(self):
+        """
+        A function that will sum together the individual inequivalent sites after they have been broadened with the matrices above.
+        Scales the sites as appropriate, then does a linear interpolation of each data point to sum together different sites.
+        """
         Edge_check = ["K","L2","L3","M4","M5"]
         Edge_scale = [1,0.3333333,0.6666667,0.4,0.6]
         max = 0
@@ -738,17 +751,17 @@ class Broaden():
         Parameters
         ----------
         XEScorelife : float
-            Specify the corehole lifetime broadening factor in eV
+            Specify the corehole lifetime broadening factor in eV. https://xpslibrary.com/core-hole-lifetimes-fwhm/ has examples for several gasses.
         specResolution : float
-            Specify spectrometer resolving power
+            Specify spectrometer resolving power. Dictates the instrumental broadening of the spectra.
         monoResolution : float
-            Specify monochromator resolving power
+            Specify monochromator resolving power. Dictates the instrumental broadening of the spectra.
         disorder : float
-            Specify general disorder factor in the sample
+            Specify general disorder factor in the sample. Only affects XAS/XANES
         XESscaling : float
-            Specify corehole lifetime scaling factor for XES
+            Specify corehole lifetime scaling factor for XES. Will scale the lifetime parabola to broaden more aggresively away from the onset.
         XASscaling : float
-            Specify corehole lifetime scaling factor for XAS
+            Specify corehole lifetime scaling factor for XAS. Will scale the lifetime parabola to broaden more aggresively away from the onset.
         XESbandScaling : [float]
             Specify corehole lifetime scaling factor for each of the bands separately in XES
         """
@@ -801,8 +814,8 @@ class Broaden():
 
     def plotExpXES(self,p):
         """
-        Plot the measured experimental data.
-        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES and XES to a figure.
+        Plot the measured experimental XES data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XES to a figure.
 
         Parameters
         ----------
@@ -823,8 +836,8 @@ class Broaden():
     
     def plotExpXANES(self,p):
         """
-        Plot the measured experimental data.
-        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES and XES to a figure.
+        Plot the measured experimental XANES data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES to a figure.
 
         Parameters
         ----------
@@ -891,8 +904,8 @@ class Broaden():
     
     def plotShiftXES(self,p):
         """
-        Plot the shifted calculated data.
-        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES and XES to a figure.
+        Plot the shifted calculated XES data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XES to a figure.
 
         Parameters
         ----------
@@ -926,8 +939,8 @@ class Broaden():
     
     def plotShiftXANES(self,p):
         """
-        Plot the shifted calculated data.
-        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES and XES to a figure.
+        Plot the shifted calculated XANES data.
+        The bokeh figure needs to be created and configured outside of the function. This simply adds the XANES to a figure.
 
         Parameters
         ----------
@@ -1097,8 +1110,11 @@ class Broaden():
         Parameters
         ----------
         filename : string
+            Specify the desired filename. Usually the compound name or molecular formula.
         element : string
-            The edge of the excited element
+            The edge of the excited element 
+        individual : True/False
+            Specify whether to export the individual inequivalent sites, or only the broadened sum.
         """
 
         with open(f"{filename}_{element}_XES.csv", 'w', newline='') as f:
