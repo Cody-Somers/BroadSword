@@ -1,7 +1,7 @@
 # BroadSword
 Converting the BroadSword program written by Teak Boyko from the Canadian Light Source in Saskatoon, SK, CA.
 The program has been transcribed into python so that it can be compatible with jupyter notebook.
-It still makes use of C functions as the runtime in pure Python is too long to be practically usable.
+Execution should be < 30s in the majority of cases. However when certain conditions do not align it can take > 2min. The program will warn the user of such an event.
 
 Go to the [github](https://github.com/Cody-Somers/BroadSword/tree/main) to find an example program to better understand the input file requirements.
 
