@@ -88,28 +88,54 @@ class Broaden():
             Specify the number of headerlines for the XES and XANES files respectively. 
         """
 
-        with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
-            df = pd.read_csv(xesFile, delimiter='\s+',header=None, skiprows=headerlines[0]) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook
-            c1 = 0
-            maxEXP = 0
-            for i in range(len(df)): 
-                ExpSXS[0][c1][0] = df[0][c1] # Energy
-                ExpSXS[1][c1][0] = df[1][c1] # Counts
-                if ExpSXS[1][c1][0] > maxEXP:
-                    maxEXP = ExpSXS[1][c1][0] # Get max value in experimental XES
-                c1 += 1
-            ExpSXSCount[0] = c1 # Length of data points
-            for i in range(ExpSXSCount[0]): # Normalize spectra
-                ExpSXS[1][i][0] = ExpSXS[1][i][0]/maxEXP
-
-        with open(basedir+"/"+XANES, "r") as xanesFile: # Measured XANES
-            df = pd.read_csv(xanesFile, delimiter='\s+',header=None, skiprows=headerlines[1])
-            c1 = 0
-            for i in range(len(df)):
-                ExpSXS[0][c1][1] = df[0][c1] # Energy
-                ExpSXS[1][c1][1] = df[1][c1] # Counts
-                c1 += 1
-            ExpSXSCount[1] = c1 # Length of data points
+        try:
+            with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
+                df = pd.read_csv(xesFile, delimiter='\s+', header=None, skiprows=headerlines[0]) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook
+                c1 = 0
+                maxEXP = 0
+                for i in range(len(df)): 
+                    ExpSXS[0][c1][0] = df[0][c1] # Energy
+                    ExpSXS[1][c1][0] = df[1][c1] # Counts
+                    if ExpSXS[1][c1][0] > maxEXP:
+                        maxEXP = ExpSXS[1][c1][0] # Get max value in experimental XES
+                    c1 += 1
+                ExpSXSCount[0] = c1 # Length of data points
+                for i in range(ExpSXSCount[0]): # Normalize spectra
+                    ExpSXS[1][i][0] = ExpSXS[1][i][0]/maxEXP
+        except:
+            with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
+                # This trys it as a .csv instead of a .txt
+                df = pd.read_csv(xesFile, header=None, skiprows=headerlines[0]) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook                
+                c1 = 0
+                maxEXP = 0
+                for i in range(len(df)): 
+                    ExpSXS[0][c1][0] = df[0][c1] # Energy
+                    ExpSXS[1][c1][0] = df[1][c1] # Counts
+                    if ExpSXS[1][c1][0] > maxEXP:
+                        maxEXP = ExpSXS[1][c1][0] # Get max value in experimental XES
+                    c1 += 1
+                ExpSXSCount[0] = c1 # Length of data points
+                for i in range(ExpSXSCount[0]): # Normalize spectra
+                    ExpSXS[1][i][0] = ExpSXS[1][i][0]/maxEXP
+        try:
+            with open(basedir+"/"+XANES, "r") as xanesFile: # Measured XANES
+                df = pd.read_csv(xanesFile, delimiter='\s+', header=None, skiprows=headerlines[1])
+                c1 = 0
+                for i in range(len(df)):
+                    ExpSXS[0][c1][1] = df[0][c1] # Energy
+                    ExpSXS[1][c1][1] = df[1][c1] # Counts
+                    c1 += 1
+                ExpSXSCount[1] = c1 # Length of data points
+        except:
+            with open(basedir+"/"+XANES, "r") as xanesFile: # Measured XANES
+                # This trys it as a .csv instead of a .txt
+                df = pd.read_csv(xanesFile, header=None, skiprows=headerlines[1])
+                c1 = 0
+                for i in range(len(df)):
+                    ExpSXS[0][c1][1] = df[0][c1] # Energy
+                    ExpSXS[1][c1][1] = df[1][c1] # Counts
+                    c1 += 1
+                ExpSXSCount[1] = c1 # Length of data points
         
         global CalcSXSCase
         global Fermi
