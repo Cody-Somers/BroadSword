@@ -32,32 +32,28 @@ output_notebook(hide_banner=True)
 broad = Broaden()
 
 # Load the experimental and calculations
-broad.loadExp(basedir,XES="N_test_XES.txt",XANES="N_test_XAS.txt",GS_fermi=0.44996547,headerlines=[2,2])
-broad.loadCalc(basedir,XES="N1_emis.txspec",XAS="N1_abs.txspec",GS_bindingEnergy=27.176237,XANES="N1_half.txspec",ES_fermi=0.45062079,sites=1,edge="L2")
+broad.loadExp(basedir,XES="N_test_XES.txt",XANES="XAS_Fe_Nitrogen.csv",GS_fermi=0.44996547,headerlines=[2,2])
+broad.loadCalc(basedir,XES="N1_emis.txspec",XAS="N1_abs.txspec",GS_bindingEnergy=27.176237,XANES="N1_half.txspec",ES_fermi=0.45062079,sites=1,edge="L2",headerlines=[0,0,0]) 
 broad.loadCalc(basedir,XES="N2_emis.txspec",XAS="N2_abs.txspec",GS_bindingEnergy=27.177975,XANES="N2_half.txspec",ES_fermi=0.45091878)
 broad.loadCalc(basedir,XES="N3_emis.txspec",XAS="N3_abs.txspec",GS_bindingEnergy=27.122234,XANES="N3_half.txspec",ES_fermi=0.45090808)
 broad.loadCalc(basedir,XES="N4_emis.txspec",XAS="N4_abs.txspec",GS_bindingEnergy=27.177070,XANES="N4_half.txspec",ES_fermi=0.45088602)
-
 # broad.loadCalc(basedir,XES="N1_emis.txspec",XAS="N1_abs.txspec",GS_bindingEnergy=27.177070) # Minimum required inputs to broaden a spectra.
 
 # Initialize the broadening parameters
 broad.initResolution(corelifetime=0.15,specResolution=1200,monoResolution=5000,disorder=0.5,XESscaling=0.5,XASscaling=0.5)
-# Optionally you can scale specific bands in XEN. Use printBands() to determine where the bands are located.
-# Then add the new argument XESbandScaling into initResolution()
-# broad.printBands()
-# XESbandScaling=[[0.1,0.2,0.2,0.4],[0.2,0.2,0.4,0.2],[0.3,0.2,0.1,0.5],[0.3,0.5,0.4,0.2]])
-
 # Shift the spectra until the calculation aligns with the experimental
 broad.Shift(XESshift=19.2,XASshift=20.2,separate=False)
-# Optionally you can shift specific bands in XES.
-# Add the new argument into Shift()
-# XESbandshift=[[30,33,30,20],[15,19.2,19.2,19.2],[30,33,30,20],[15,19.2,19.2,19.2]])
-
 # Broaden the spectra
 broad.broaden(separate=False)
-
 # Export the broadened calculated spectra
 # broad.export(filename="GeP2N4",element="N",individual=False)
+
+# Optionally you can scale and shift specific bands in XES. Use printBands() to determine where the bands are located.
+# Then add the new argument XESbandScaling into initResolution() and XESbandshift int Shift()
+#broad.printBands()
+#broad.initResolution(corelifetime=0.15,specResolution=1200,monoResolution=5000,disorder=0.5,XESscaling=0.5,XASscaling=0.5,XESbandScaling=[[0.1,0.2,0.2,0.4],[0.2,0.2,0.4,0.2],[0.3,0.2,0.1,0.5],[0.3,0.5,0.4,0.2]])
+#broad.Shift(XESshift=19.2,XASshift=20.2,separate=False,XESbandshift=[[30,33,30,20],[15,19.2,19.2,19.2],[30,33,30,20],[15,19.2,19.2,19.2]])
+#broad.broaden(separate=False)
 ```
 
 ### Functions
@@ -65,7 +61,8 @@ Below are the functions with their input criteria. If needed the docstrings will
 
 ```
 def loadExp(self, basedir, XES, XANES, GS_fermi, headerlines=[0,0]):
-# Loads the measured experimental data. Fermi energy is from the calculated ground state
+# Loads the measured experimental data. Fermi energy is from the calculated ground state.
+# Use headerlines to specify the number of lines to ignore in [XES, XANES] respectively.
 
 def loadCalc(self, basedir, XES, XAS, GS_bindingEnergy, XANES=0, ES_fermi=0,  edge="K", sites=1, headerlines=[0,0,0]):
 # Loads the calculated data. The header lines are an array describing the number of header lines in the [XES, XAS, XANES] respectively.
@@ -82,11 +79,11 @@ def initResolution(self, corelifetime, specResolution, monoResolution, disorder,
 def Shift(self,XESshift, XASshift, XESbandshift=0, separate=False):
 # Shifts the calculated spectra based on user input.
 # An optional variable to shift the bands individually is available
-# separate describes whether or not to create a separate plot for XES and XAS
+# 'separate' describes whether or not to create a separate plot for XES and XAS
 
 def broaden(self, separate=True)
-# Broadens the calculated spectra. The library path will need to specified as described in the Installation segment
-# separate describes whether or not to create a separate plot for XES and XAS
+# Broadens the calculated spectra.
+# 'separate' describes whether or not to create a separate plot for XES and XAS
 
 def export(self, filename, element, individual=False)
 # Exports the broadened data as a .csv file.
