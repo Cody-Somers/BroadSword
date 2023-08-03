@@ -792,6 +792,7 @@ class Broaden():
                                     # This would slow down the program, but only in cases where necessary.
                                     if statement == 1:
                                         print("Report this to cas003@usask.ca and attach the txspec files used in the Jupyter Notebook")
+                                        print("The broadening will take several minutes. To avoid this, try making all of the .txspec files the same length. (-2 to 50eV for example)")
                                         statement = 2
                         
                         while c4 < BroadSXSCount[c1][c2]:
