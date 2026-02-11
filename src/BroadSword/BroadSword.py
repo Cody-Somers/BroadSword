@@ -1,21 +1,19 @@
 
-import ctypes as C
-from ctypes import *
 import numpy as np
-import numpy.ctypeslib as npc
 import pandas as pd
 import csv
-from reixs.LoadData import *
 
 # Plotting
-from bokeh.io import push_notebook
 from bokeh.plotting import show, figure
 from bokeh.models import ColumnDataSource, HoverTool, LinearColorMapper, LogColorMapper, ColorBar, Span, Label
-
-# Widgets
-import ipywidgets as widgets
-from IPython.display import display
-from ipyfilechooser import FileChooser
+COLORP = ['#d60000', '#8c3bff', '#018700', '#00acc6', '#e6a500', '#ff7ed1', '#6b004f', '#573b00', '#005659', '#15e18c', '#0000dd', '#a17569', '#bcb6ff', '#bf03b8', '#645472', '#790000', '#0774d8', '#729a7c', '#ff7752', '#004b00', '#8e7b01', '#f2007b', '#8eba00', '#a57bb8', '#5901a3', '#e2afaf', '#a03a52', '#a1c8c8', '#9e4b00', '#546744', '#bac389', '#5e7b87',
+          '#60383b', '#8287ff', '#380000', '#e252ff', '#2f5282', '#7ecaff', '#c4668e', '#008069', '#919eb6', '#cc7407', '#7e2a8e', '#00bda3', '#2db152', '#4d33ff', '#00e400', '#ff00cd', '#c85748', '#e49cff', '#1ca1ff', '#6e70aa', '#c89a69', '#77563b', '#03dae6', '#c1a3c3', '#ff6989', '#ba00fd', '#915280', '#9e0174', '#93a14f', '#364424', '#af6dff', '#596d00',
+          '#ff3146', '#828056', '#006d2d', '#8956af', '#5949a3', '#773416', '#85c39a', '#5e1123', '#d48580', '#a32818', '#0087b1', '#ca0044', '#ffa056', '#eb4d00', '#6b9700', '#528549', '#755900', '#c8c33f', '#91d370', '#4b9793', '#4d230c', '#60345b', '#8300cf', '#8a0031', '#9e6e31', '#ac8399', '#c63189', '#015438', '#086b83', '#87a8eb', '#6466ef', '#c35dba',
+          '#019e70', '#805059', '#826e8c', '#b3bfda', '#b89028', '#ff97b1', '#a793e1', '#698cbd', '#4b4f01', '#4801cc', '#60006e', '#446966', '#9c5642', '#7bacb5', '#cd83bc', '#0054c1', '#7b2f4f', '#fb7c00', '#34bf00', '#ff9c87', '#e1b669', '#526077', '#5b3a7c', '#eda5da', '#ef52a3', '#5d7e69', '#c3774f', '#d14867', '#6e00eb', '#1f3400', '#c14103', '#6dd4c1',
+          '#46709e', '#a101c3', '#0a8289', '#afa501', '#a55b6b', '#fd77ff', '#8a85ae', '#c67ee8', '#9aaa85', '#876bd8', '#01baf6', '#af5dd1', '#59502a', '#b5005e', '#7cb569', '#4985ff', '#00c182', '#d195aa', '#a34ba8', '#e205e2', '#16a300', '#382d00', '#832f33', '#5d95aa', '#590f00', '#7b4600', '#6e6e31', '#335726', '#4d60b5', '#a19564', '#623f28', '#44d457',
+          '#70aacf', '#2d6b4d', '#72af9e', '#fd1500', '#d8b391', '#79893b', '#7cc6d8', '#db9036', '#eb605d', '#eb5ed4', '#e47ba7', '#a56b97', '#009744', '#ba5e21', '#bcac52', '#87d82f', '#873472', '#aea8d1', '#e28c62', '#d1b1eb', '#36429e', '#3abdc1', '#669c4d', '#9e0399', '#4d4d79', '#7b4b85', '#c33431', '#8c6677', '#aa002d', '#7e0175', '#01824d', '#724967',
+          '#727790', '#6e0099', '#a0ba52', '#e16e31', '#c46970', '#6d5b95', '#a33b74', '#316200', '#87004f', '#335769', '#ba8c7c', '#1859ff', '#909101', '#2b8ad4', '#1626ff', '#21d3ff', '#a390af', '#8a6d4f', '#5d213d', '#db03b3', '#6e56ca', '#642821', '#ac7700', '#a3bff6', '#b58346', '#9738db', '#b15093', '#7242a3', '#878ed1', '#8970b1', '#6baf36', '#5979c8',
+          '#c69eff', '#56831a', '#00d6a7', '#824638', '#11421c', '#59aa75', '#905b01', '#f64470', '#ff9703', '#e14231', '#ba91cf', '#34574d', '#f7807c', '#903400', '#b3cd00', '#2d9ed3', '#798a9e', '#50807c', '#c136d6', '#eb0552', '#b8ac7e', '#487031', '#839564', '#d89c89', '#0064a3', '#4b9077', '#8e6097', '#ff5238', '#a7423b', '#006e70', '#97833d', '#dbafc8']
 
 # TODO: Replace these all with a self.var so that they are not globals
 # These are the input and output spectra of type float
@@ -24,40 +22,37 @@ from ipyfilechooser import FileChooser
 # ['Row'] = data
 # ['XES, XANES'] = [0=XES, 1=XANES]
 # ['XES, XAS, or XANES'] = [0=XES,1=XAS,2=XANES]
+maxSites = 40
 ExpSXS = np.zeros([2,1500,2]) # Experimental Spectra ['Column']['Row']['XES or XANES']
-CalcSXS = np.zeros([2,3500,3,40]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-BroadSXS = np.zeros([7,3500,3,40]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-#BroadSXS = (C.c_float*40*3*3500*7)() 
+CalcSXS = np.zeros([2,3500,3,maxSites]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
+BroadSXS = np.zeros([7,3500,3,maxSites]) # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
 SumSXS = np.zeros([2,3500,3]) # Total Summed Spectra
-#SumSXS = (C.c_float*3*3500*2)() 
 Gauss = np.zeros([3500,3500]) # Gauss broadening matrix for each spectrum
 Lorentz = np.zeros([3500,3500]) # Lorentz broadening matrix for each spectrum
 Disorder = np.zeros([3500,3500]) # Disorder broadening matrix for each spectrum
 
 ExpSXSCount = np.zeros([2],dtype=int) # Stores number of elements in the arrays of Experimental data
 CalcSXSCase = 0
-CalcSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays of Calculated data
-BroadSXSCount = np.zeros([3,40],dtype=int) # Stores number of elements in the arrays of Shifted/Intermediate data
-SumSXSCount = np.zeros([3],dtype=int)
-#SumSXSCount = (C.c_int*3)() # Store number of elements in the arrays of Final Data
+CalcSXSCount = np.zeros([3,maxSites],dtype=int) # Stores number of elements in the arrays of Calculated data
+BroadSXSCount = np.zeros([3,maxSites],dtype=int) # Stores number of elements in the arrays of Shifted/Intermediate data
+SumSXSCount = np.zeros([3],dtype=int) # Store number of elements in the arrays of Final Data
 
 # These store data for generating the broadening criteria
-scaleXES = np.zeros([40,50])
-Bands = np.zeros([50,40,2]) 
-BandNum = np.zeros([40],dtype=int)
+scaleXES = np.zeros([maxSites,50])
+Bands = np.zeros([50,maxSites,2])
+BandNum = np.zeros([maxSites],dtype=int)
 Fermi = 0 # Ground state fermi energy
-Fermis = np.zeros([40]) # Excited state fermi energy for each inequivalent site
-Binds = np.zeros([40]) # Ground statet binding energy for each inequivalent site
-shiftXES = np.zeros([40,50])
-scalar = np.zeros([3,40])
-# Edge = np.zeros([40],dtype=str)
+Fermis = np.zeros([maxSites]) # Excited state fermi energy for each inequivalent site
+Binds = np.zeros([maxSites]) # Ground statet binding energy for each inequivalent site
+shiftXES = np.zeros([maxSites,50])
+scalar = np.zeros([3,maxSites])
 Edge = []
-Site = np.zeros([40])
+Site = np.zeros([maxSites])
 
 # Misc
-bandshift = np.zeros([40,40])
-bands_temp = np.zeros([3500,40,40])
-bands_temp_count = np.zeros([40,40],dtype=int)
+bandshift = np.zeros([maxSites,maxSites])
+bands_temp = np.zeros([3500,maxSites,maxSites])
+bands_temp_count = np.zeros([maxSites,maxSites],dtype=int)
 BandGap = 0
 
 class Broaden():
@@ -70,6 +65,14 @@ class Broaden():
 
     def __init__(self):
         self.data = list() # Why is this here?
+
+    def setMaxSites(self, maxNumberSites):
+        global maxSites
+        maxSites = maxNumberSites
+
+    def clearFigures(self):
+        global CalcSXSCase
+        CalcSXSCase = 0
 
     def loadExp(self, basedir, XES, XANES, GS_fermi, headerlines=[0,0]):
         """
@@ -399,144 +402,6 @@ class Broaden():
         
         return
 
-    def broadenC(self, libpath="./"):
-        """
-        This will take the shifted calculated spectra and broaden it based on the lifetime, instrument, and general disorder broadening.
-        It creates a series of gaussians and lorentzians before applying it to the spectra appropriately.
-        Depreciated Function: Currently not usable, but can easily be reinstated by changing the globals back to ctypes.
-
-        Parameters
-        ----------
-        libpath : string
-            Path location of the .so or .dylib files. Ex: "/Users/cas003/opt/anaconda3/lib/python3.9/site-packages/BroadSword/"
-            If compiling from source put the path of the install folder. 
-            If using "pip install" make a note of where it installed the program and copy that directory path here.
-        """
-
-        Econd = np.zeros(40)
-        type = False
-        energy_0 = 20
-
-        if XESbandScale == 0: # Applying a singular scale to XES
-            for c1 in range(CalcSXSCase):
-                for c2 in range(BandNum[c1]):
-                    scaleXES[c1][c2] = XESscale
-        else: # Applying scale to individual bands in XES
-            for c1 in range(CalcSXSCase):
-                for c2 in range(BandNum[c1]):
-                    scaleXES[c1][c2] = XESbandScale[c1][c2]
-        
-        for c1 in range(CalcSXSCase): # Line 791
-            c2 = 0
-            while c2 < BroadSXSCount[2][c1]:
-                if BroadSXS[1][c2][2][c1] != 0:
-                    Econd[c1] = BroadSXS[0][c2][2][c1]
-                    c2 = 999999
-                c2 += 1
-        
-        for c1 in range(CalcSXSCase): # Using scaling factor for corehole lifetime for XAS and XANES
-            for c2 in range(1,3): # Line 805
-                for c3 in range(BroadSXSCount[c2][c1]):
-                    if BroadSXS[0][c3][c2][c1] <= Econd[c1]:
-                        BroadSXS[2][c3][c2][c1] = corelifeXAS
-                    else:
-                        if BroadSXS[0][c3][c2][c1] < Econd[c1] + energy_0:
-                            BroadSXS[2][c3][c2][c1] = scaleXAS/100 * ((BroadSXS[0][c3][c2][c1]-Econd[c1]) * (BroadSXS[0][c3][c2][c1]-Econd[c1])) + corelifeXAS # Replace with **2 ??
-                        else:
-                            BroadSXS[2][c3][c2][c1] = scaleXAS/100 * (energy_0 * energy_0) + corelifeXAS
-                    BroadSXS[4][c3][c2][c1] = BroadSXS[0][c3][c2][c1] / mono
-
-        for c1 in range(CalcSXSCase): # Corehole lifetime scaling for XES
-            type = False # Line 830
-            c3 = 0
-            for c2 in range(BroadSXSCount[0][c1]):
-                BroadSXS[4][c2][0][c1] = BroadSXS[0][c2][0][c1]/spec
-                if type is False:
-                    if BroadSXS[1][c2][0][c1] != 0:
-                        type = True
-                    else:
-                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
-                if type is True:
-                    if BroadSXS[1][c2][0][c1] == 0:
-                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
-                        type = False
-                        c3 += 1
-                        if c3 > BandNum[c1]:
-                            c3 = BandNum[c1]-1
-                    else:
-                        BroadSXS[2][c2][0][c1] = scaleXES[c1][c3]/100 * ((BroadSXS[0][c2][0][c1]-Econd[c1]) * (BroadSXS[0][c2][0][c1]-Econd[c1])) + corelifeXES
-
-        # Three different compilations of the .c file exist as c code has to be compiled based on the operating system that runs it.
-        # TODO: There is currently no file that exists for windows OS
-        try:
-            mylib = cdll.LoadLibrary(libpath + "libmatrices.so")
-        except OSError:
-            try:
-                mylib = cdll.LoadLibrary(libpath + "libmatrices_ARM64.dylib")
-            except OSError:
-                try:
-                    mylib = cdll.LoadLibrary(libpath + "libmatrices_x86_64.dylib")
-                except OSError:
-                    try:
-                        mylib = cdll.LoadLibrary(libpath)
-                    except OSError as e:
-                        print("Download the source and use the .c file to compile your own shared library and rename one of the existing .so or .dylib files.")
-                        print("If compiling from source the pathname can include the filename. Ex: '/Users/cas003/opt/anaconda3/lib/python3.9/site-packages/BroadSword/MYLIBRARY.so' ")
-                        print("No file currently exists for Windows OS (.dll).")
-                        print(e)
-
-        # These convert existing parameters into their respective ctypes. This takes very little time, but is super inefficient.
-        # Can probably change the global variable declaration so that they are existing only as c types to begin with.
-
-        cCalcSXSCase = C.c_int(CalcSXSCase)
-
-        cBroadSXSCount = (C.c_int*40*3)()
-        for c1 in range(3):
-            for c2 in range(40):
-                cBroadSXSCount[c1][c2] = BroadSXSCount[c1][c2]
-        
-        cdisord = C.c_float(disord)
-
-        cscalar = (C.c_float*40*3)()
-        for c1 in range(3):
-            for c2 in range(40):
-                cscalar[c1][c2] = scalar[c1][c2]
-        
-        cEdge = (C.c_int*40)()
-        for c1 in range(len(Edge)): # Convert the strings into integers to make it easier when transferring to the c program
-            if Edge[c1] == "K":
-                cEdge[c1] = 1
-            elif Edge[c1] == "L2":
-                cEdge[c1] = 2
-            elif Edge[c1] == "L3":
-                cEdge[c1] = 3
-            elif Edge[c1] == "M4":
-                cEdge[c1] = 4
-            elif Edge[c1] == "M5":
-                cEdge[c1] = 5
-            else:
-                cEdge[c1] = 1
-
-        cSite = (C.c_float*40)()
-        for c1 in range(40):
-            cSite[c1] = Site[c1]
-
-        # Here we call the command to run program contained within the .c file
-        mylib.broadXAS(cCalcSXSCase,cBroadSXSCount,BroadSXS,cdisord)
-        mylib.add(cCalcSXSCase,cscalar,cEdge,cSite,BroadSXS,cBroadSXSCount,SumSXS,SumSXSCount)
-
-        # Creating the figure for plotting the broadened data.
-        p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                   tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-        p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-            ("(x,y)", "(Energy, Intensity)"),
-            ("(x,y)", "($x, $y)")
-        ]))
-        self.plotBroadCalc(p)
-        self.plotExp(p)
-        show(p)
-        return
-
     def broaden(self,separate=True, Ængus=False):
         """
         This will take the shifted calculated spectra and broaden it based on the lifetime, instrument, and general disorder broadening.
@@ -550,7 +415,7 @@ class Broaden():
         if Ængus == "yup":
             Ængus = True
 
-        Econd = np.zeros(40)
+        Econd = np.zeros(maxSites)
         type = False
         energy_0 = 20
         Pi = 3.14159265; # The Pi constant used for the distribution functions.
@@ -731,7 +596,6 @@ class Broaden():
                 self.plotBroadXANES(p)
                 p.add_layout(p.legend[0], 'right')
                 show(p)
-
         return
 
     def add(self):
@@ -781,7 +645,6 @@ class Broaden():
                             if c4 < 0:
                                 c4 = 0
                             if statement == 0:
-                                print("Report this to cas003@usask.ca") # I want to know if it is possible for this point to be reached.
                                 statement = 1
                             if BroadSXS[0][c4][c1][c2] > SumSXS[0][c3][c1]:
                                 c4 = c3 - 500 # Try once again with a larger range.
@@ -791,8 +654,7 @@ class Broaden():
                                     c4 = 0 # This just ensures that if it is as far back as allowed, it will instead start at 0 to go through all values
                                     # This would slow down the program, but only in cases where necessary.
                                     if statement == 1:
-                                        print("Report this to cas003@usask.ca and attach the txspec files used in the Jupyter Notebook")
-                                        print("The broadening will take several minutes. To avoid this, try making all of the .txspec files the same length. (-2 to 50eV for example)")
+                                        print("The broadening will longer than normal. To avoid this, try making all of the .txspec files the same length. (-2 to 50eV for example)")
                                         statement = 2
                         
                         while c4 < BroadSXSCount[c1][c2]:
@@ -930,7 +792,7 @@ class Broaden():
             The bokeh figure needs to be created outside of the function.
         """
 
-        MaxCalcSXS = np.zeros([3,40]) # Find the maximum value in the spectra to normalize it for plotting.
+        MaxCalcSXS = np.zeros([3,maxSites]) # Find the maximum value in the spectra to normalize it for plotting.
         for c1 in range(CalcSXSCase):
             for c3 in range(3):
                 for c2 in range(CalcSXSCount[c3][c1]):
@@ -978,7 +840,7 @@ class Broaden():
             The bokeh figure needs to be created outside of the function.
         """
 
-        MaxCalcSXS = np.zeros([3,40]) # Find the maximum value in the spectra to normalize it for plotting.
+        MaxCalcSXS = np.zeros([3,maxSites]) # Find the maximum value in the spectra to normalize it for plotting.
         for c1 in range(CalcSXSCase):
             for c3 in range(3):
                 for c2 in range(CalcSXSCount[c3][c1]):
@@ -1013,7 +875,7 @@ class Broaden():
             The bokeh figure needs to be created outside of the function.
         """
 
-        MaxCalcSXS = np.zeros([3,40]) # Find the maximum value in the spectra to normalize it for plotting.
+        MaxCalcSXS = np.zeros([3,maxSites]) # Find the maximum value in the spectra to normalize it for plotting.
         for c1 in range(CalcSXSCase):
             for c3 in range(3):
                 for c2 in range(CalcSXSCount[c3][c1]):
@@ -1049,7 +911,7 @@ class Broaden():
         """
         p = figure()
 
-        MaxCalcSXS = np.zeros([3,40]) # Find the maximum value in the spectra to normalize it for plotting.
+        MaxCalcSXS = np.zeros([3,maxSites]) # Find the maximum value in the spectra to normalize it for plotting.
         for c1 in range(CalcSXSCase):
             for c3 in range(3):
                 for c2 in range(CalcSXSCount[c3][c1]):
