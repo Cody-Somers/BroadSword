@@ -31,8 +31,11 @@ output_notebook(hide_banner=True)
 # Create an instance of the class
 broad = Broaden()
 
+# broad.setMaxSites(80) # The default number of sites is 40. If you need more then set more.
+
 # Load the experimental and calculations
 broad.loadExp(basedir,XES="N_test_XES.txt",XANES="XAS_Fe_Nitrogen.csv",GS_fermi=0.44996547,headerlines=[2,2])
+# broad.setFermi(0.44996547) # Ground state fermi if you don't have experimental data.
 broad.loadCalc(basedir,XES="N1_emis.txspec",XAS="N1_abs.txspec",GS_bindingEnergy=27.176237,XANES="N1_half.txspec",ES_fermi=0.45062079,sites=1,edge="L2",headerlines=[0,0,0]) 
 broad.loadCalc(basedir,XES="N2_emis.txspec",XAS="N2_abs.txspec",GS_bindingEnergy=27.177975,XANES="N2_half.txspec",ES_fermi=0.45091878)
 broad.loadCalc(basedir,XES="N3_emis.txspec",XAS="N3_abs.txspec",GS_bindingEnergy=27.122234,XANES="N3_half.txspec",ES_fermi=0.45090808)
@@ -68,6 +71,12 @@ def loadCalc(self, basedir, XES, XAS, GS_bindingEnergy, XANES=0, ES_fermi=0,  ed
 # Loads the calculated data. The header lines are an array describing the number of header lines in the [XES, XAS, XANES] respectively.
 # Fermis is the energy from the calculated excited state. Binding is from the ground state.
 # Specifying the edge and number of sites are only required if they differ from the K edge and you have a different number of atoms between different inequivalent atoms.
+
+def setMaxSites(self, maxNumberSites)
+# Used to increase or decrease maximum number of sites being calculated. Default is 40.
+
+def setFermi(self, groundStateFermi)
+# Used to set the ground state fermi level for when no experimental spectra is included.
 
 def printBands(self):
 # Prints out the location of the bands
