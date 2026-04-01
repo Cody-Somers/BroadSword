@@ -491,10 +491,10 @@ class Broaden:
                 position = self.BroadSXS[0][c3][0][c1] # We extract the centroid of the Gaussian Distribution
                 self.Gauss[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(self.BroadSXS[0,:,0,c1]-position)*(self.BroadSXS[0,:,0,c1]-position)/2/width/width)
 
-                #  Commented out since disorder does not affect XES
-                #width = self.disord/2.3548; # We extract the variance for the Gaussian Distribution
-                #position = self.BroadSXS[0][c3][0][c1]; # We extract the centroid of the Gaussian Distribution
-                #self.Disorder[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(self.BroadSXS[0,:,0,c1]-position)*(self.BroadSXS[0,:,0,c1]-position)/2/width/width)
+                #  Commented out since disorder does not affect XES. Apparently it does, so uncommented
+                width = self.disord/2.3548 # We extract the variance for the Gaussian Distribution
+                position = self.BroadSXS[0][c3][0][c1] # We extract the centroid of the Gaussian Distribution
+                self.Disorder[c3,:] = np.reciprocal(np.sqrt(2*Pi*width*width))*np.exp(-(self.BroadSXS[0,:,0,c1]-position)*(self.BroadSXS[0,:,0,c1]-position)/2/width/width)
 
                 width = self.BroadSXS[2][c3][0][c1]/2 # We extract the variance for the Gaussian Distribution
                 position = self.BroadSXS[0][c3][0][c1] # We extract the centroid of the Gaussian Distribution
