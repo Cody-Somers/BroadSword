@@ -89,7 +89,7 @@ class Broaden:
         """
         self.CalcSXSCase = 0
 
-    def setFermi(self,groundStateFermi):
+    def setFermi(self, groundStateFermi):
         """
         Sets the ground state fermi level for when no experimental data is present.
         """
@@ -508,9 +508,9 @@ class Broaden:
             for c3 in range(self.BroadSXSCount[0][c1]):
                 self.BroadSXS[6,:,0,c1] = self.BroadSXS[6,:,0,c1]+(self.Gauss[c3,:]*self.BroadSXS[3][c3][0][c1]*(self.BroadSXS[0][1][0][c1]-self.BroadSXS[0][0][0][c1]))
 
-            #self.BroadSXS[6,:,0,c1] = 0 # Line 924 Originally commented out in C code because disorder does not impact XES.
-            #for c4 in range(self.BroadSXSCount[0][c1]):
-            #    self.BroadSXS[6,:,0,c1] = self.BroadSXS[6,:,0,c1]+(self.Disorder[c4,:]*self.BroadSXS[5][c4][0][c1]*(self.BroadSXS[0][1][0][c1]-self.BroadSXS[0][0][0][c1]))
+            self.BroadSXS[6,:,0,c1] = 0 # Line 924 Originally commented out in C code because disorder does not impact XES. Apparently it should, so uncommented
+            for c4 in range(self.BroadSXSCount[0][c1]):
+                self.BroadSXS[6,:,0,c1] = self.BroadSXS[6,:,0,c1]+(self.Disorder[c4,:]*self.BroadSXS[5][c4][0][c1]*(self.BroadSXS[0][1][0][c1]-self.BroadSXS[0][0][0][c1]))
 
 
         for c1 in range(self.CalcSXSCase): # Line 938
