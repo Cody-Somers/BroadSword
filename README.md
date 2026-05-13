@@ -16,6 +16,8 @@ Install the package from PyPi with the pip package manager. This is the recommen
 You will also need [Jupyter Notebook](https://github.com/jupyter) together with python 3 on your local machine.
 
 ## Example Program
+If you plan to use XANES, you need a XANES file for each XAS, otherwise it will simply copy the XAS and pretend it is XANES.
+This will cause issues if you are comparing a single XANES against multiple XAS spectra.
 
 ```
 # Specify the base directory for the location of the data files
@@ -30,8 +32,10 @@ output_notebook(hide_banner=True)
 
 # Create an instance of the class
 broad = Broaden()
-
-# broad.setMaxSites(80) # The default number of sites is 40. If you need more then set more.
+# broad = Broaden(maxSites = 80, calc_max_length = 5000, exp_max_length = 2000) 
+# The default number of sites is 40. If you need more then set more.
+# Default calculation length is 3500
+# Default measurement length is 1500
 
 # Load the experimental and calculations
 broad.loadExp(basedir,XES="N_test_XES.txt",XANES="XAS_Fe_Nitrogen.csv",GS_fermi=0.44996547,headerlines=[2,2])
@@ -45,9 +49,9 @@ broad.loadCalc(basedir,XES="N4_emis.txspec",XAS="N4_abs.txspec",GS_bindingEnergy
 # Initialize the broadening parameters
 broad.initResolution(corelifetime=0.15,specResolution=1200,monoResolution=5000,disorder=0.5,XESscaling=0.5,XASscaling=0.5)
 # Shift the spectra until the calculation aligns with the experimental
-broad.Shift(XESshift=19.2,XASshift=20.2,separate=False)
+broad.Shift(XESshift=19.2,XASshift=20.2,separate=False, printFig=True)
 # Broaden the spectra
-broad.broaden(separate=False)
+broad.broaden(separate=False, Ængus=False, printFig=True)
 # Export the broadened calculated spectra
 # broad.export(filename="GeP2N4",element="N",individual=False)
 
@@ -71,9 +75,6 @@ def loadCalc(self, basedir, XES, XAS, GS_bindingEnergy, XANES=0, ES_fermi=0,  ed
 # Loads the calculated data. The header lines are an array describing the number of header lines in the [XES, XAS, XANES] respectively.
 # Fermis is the energy from the calculated excited state. Binding is from the ground state.
 # Specifying the edge and number of sites are only required if they differ from the K edge and you have a different number of atoms between different inequivalent atoms.
-
-def setMaxSites(self, maxNumberSites)
-# Used to increase or decrease maximum number of sites being calculated. Default is 40.
 
 def setFermi(self, groundStateFermi)
 # Used to set the ground state fermi level for when no experimental spectra is included.

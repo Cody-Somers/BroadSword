@@ -23,10 +23,10 @@ class Broaden:
     Third: Generate the parameters used for shifting and broadening. Finally: Broaden the spectra.
     """
 
-    def __init__(self):
+    def __init__(self, maxSites=40,calc_max_length=3500,exp_max_length=1500):
         self.data = list() # Why is this here?
 
-        self.maxSites = 40
+        self.maxSites = maxSites 
 
         # These are the input and output spectra of type float
         # ['Column'] = [0=Energy, 1=Counts]
@@ -34,13 +34,13 @@ class Broaden:
         # ['Row'] = data
         # ['XES, XANES'] = [0=XES, 1=XANES]
         # ['XES, XAS, or XANES'] = [0=XES,1=XAS,2=XANES]
-        self.ExpSXS = np.zeros([2, 1500, 2])  # Experimental Spectra ['Column']['Row']['XES or XANES']
-        self.CalcSXS = np.zeros([2,3500,3,self.maxSites]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-        self.BroadSXS = np.zeros([7, 3500, 3, self.maxSites])  # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
-        self.SumSXS = np.zeros([2, 3500, 3])  # Total Summed Spectra
-        self.Gauss = np.zeros([3500,3500]) # Gauss broadening matrix for each spectrum
-        self.Lorentz = np.zeros([3500, 3500])  # Lorentz broadening matrix for each spectrum
-        self.Disorder = np.zeros([3500, 3500])  # Disorder broadening matrix for each spectrum
+        self.ExpSXS = np.zeros([2, exp_max_length, 2])  # Experimental Spectra ['Column']['Row']['XES or XANES']
+        self.CalcSXS = np.zeros([2,calc_max_length,3,self.maxSites]) # Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
+        self.BroadSXS = np.zeros([7, calc_max_length, 3, self.maxSites])  # Broadened Calculated Spectra ['Column']['Row']['XES,XAS or XANES']['Site']
+        self.SumSXS = np.zeros([2, calc_max_length, 3])  # Total Summed Spectra
+        self.Gauss = np.zeros([calc_max_length,calc_max_length]) # Gauss broadening matrix for each spectrum
+        self.Lorentz = np.zeros([calc_max_length, calc_max_length])  # Lorentz broadening matrix for each spectrum
+        self.Disorder = np.zeros([calc_max_length, calc_max_length])  # Disorder broadening matrix for each spectrum
 
         self.ExpSXSCount = np.zeros([2], dtype=int)  # Stores number of elements in the arrays of Experimental data
         self.CalcSXSCase = 0
@@ -62,7 +62,7 @@ class Broaden:
 
         # Misc
         self.bandshift = np.zeros([self.maxSites, self.maxSites])
-        self.bands_temp = np.zeros([3500, self.maxSites, self.maxSites])
+        self.bands_temp = np.zeros([calc_max_length, self.maxSites, self.maxSites])
         self.bands_temp_count = np.zeros([self.maxSites, self.maxSites], dtype=int)
         self.BandGap = 0
 
@@ -76,12 +76,6 @@ class Broaden:
         self.XESscale = None
         self.scaleXAS = None
         self.XESbandScale = None
-
-    def setMaxSites(self, maxNumberSites):
-        """
-        Used to increase the maximum number of sites. Default is 40
-        """
-        self.maxSites = maxNumberSites
 
     def clearFigures(self):
         """
@@ -188,10 +182,6 @@ class Broaden:
             Specify the number of headerlines for the XES and XANES files respectively. 
         """
 
-        if XANES == 0:
-            XANES = XAS # For when no core hole exists
-            ES_fermi = self.Fermi # Make the fermi level equal to the ground state.
-
         with open(basedir+"/"+XES, "r") as xesFile: # XES Calculation
             df = pd.read_csv(xesFile, delimiter='\s+',header=None, skiprows=headerlines[0])
             c1 = 0
@@ -210,14 +200,24 @@ class Broaden:
                 c1 += 1
             self.CalcSXSCount[1][self.CalcSXSCase] = c1 # Length for each Site
 
-        with open(basedir+"/"+XANES, "r") as xanesFile: # XANES Calculation
-            df = pd.read_csv(xanesFile, delimiter='\s+',header=None, skiprows=headerlines[2])
-            c1 = 0
-            for i in range(len(df)):
-                self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1] # Energy
-                self.CalcSXS[1][c1][2][self.CalcSXSCase] = df[1][c1] # Counts
-                c1 += 1
-            self.CalcSXSCount[2][self.CalcSXSCase] = c1 # Length for each Site
+        if XANES == 0: # If XANES is not present, then use XAS calc to get energy, and then put arrays to 0
+            with open(basedir + "/" + XAS, "r") as xasFile:  # XAS Calculation
+                df = pd.read_csv(xasFile, delimiter='\s+', header=None, skiprows=headerlines[1])
+                c1 = 0
+                for i in range(len(df)):
+                    self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1]  # Energy
+                    self.CalcSXS[1][c1][2][self.CalcSXSCase] = 0  # Counts
+                    c1 += 1
+                self.CalcSXSCount[2][self.CalcSXSCase] = c1  # Length for each Site
+        else:
+            with open(basedir+"/"+XANES, "r") as xanesFile: # XANES Calculation
+                df = pd.read_csv(xanesFile, delimiter='\s+',header=None, skiprows=headerlines[2])
+                c1 = 0
+                for i in range(len(df)):
+                    self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1] # Energy
+                    self.CalcSXS[1][c1][2][self.CalcSXSCase] = df[1][c1] # Counts
+                    c1 += 1
+                self.CalcSXSCount[2][self.CalcSXSCase] = c1 # Length for each Site
 
         # Update the global variables with the parameters for that site.
         self.Fermis[self.CalcSXSCase] = ES_fermi
@@ -266,7 +266,7 @@ class Broaden:
         self.plotCalc()
         return
     
-    def Shift(self,XESshift, XASshift, XESbandshift=0, separate=False):
+    def Shift(self,XESshift, XASshift, XESbandshift=0, separate=False, printFig=True):
         """
         This will shift the files initially based on binding and fermi energy, then by user specifed shifts to XES and XAS 
         until alligned with experimental spectra.
@@ -284,6 +284,8 @@ class Broaden:
             In atom 1 this shifts the first band by 17 and the other two by 18. In atom 2 it shifts first by 16.5 and the other by 18.
         separate : True/False
             Specify whether or not to create a separate output plot of XES and XAS
+        printFig : True/False
+            Turns printing of figures off and on
         """
         self.FindBands()
         Ryd = 13.605698066 # Rydberg energy to eV
@@ -375,49 +377,47 @@ class Broaden:
                     self.BroadSXS[1][c2][c3][c1] = self.BroadSXS[1][c2][c3][c1] * (self.BroadSXS[0][c2][c3][c1] / Econ)
 
         self.BandGap = Econ - Eval # Calculate the band gap
-        print("BandGap = " + str(self.BandGap) + " eV")
+        if printFig:
+            print("BandGap = " + str(self.BandGap) + " eV")
+            # Create the figure for plotting shifted spectra
 
-        
-        # Create the figure for plotting shifted spectra
+            if separate is False:
+                # Creating the figure for plotting the broadened data.
+                p = figure(height=450, width=900, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                    ("(x,y)", "(Energy, Intensity)"),
+                    ("(x,y)", "($x, $y)")
+                ]))
+                self.plotShiftCalc(p)
+                self.plotExp(p)
+                p.add_layout(p.legend[0], 'right')
+                show(p)
+            else:
+                p = figure(height=450, width=900, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                    ("(x,y)", "(Energy, Intensity)"),
+                    ("(x,y)", "($x, $y)")
+                ]))
+                self.plotExpXES(p)
+                self.plotShiftXES(p)
+                p.add_layout(p.legend[0], 'right')
+                show(p)
 
-        if separate is False:
-            # Creating the figure for plotting the broadened data.
-            p = figure(height=450, width=900, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                    tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-            p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                ("(x,y)", "(Energy, Intensity)"),
-                ("(x,y)", "($x, $y)")
-            ]))
-            self.plotShiftCalc(p)
-            self.plotExp(p)
-            p.add_layout(p.legend[0], 'right')
-            show(p)
-        else:
-            p = figure(height=450, width=900, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                    tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-            p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                ("(x,y)", "(Energy, Intensity)"),
-                ("(x,y)", "($x, $y)")
-            ]))
-            self.plotExpXES(p)
-            self.plotShiftXES(p)
-            p.add_layout(p.legend[0], 'right')
-            show(p)
-
-            p = figure(height=450, width=900, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                    tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-            p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                ("(x,y)", "(Energy, Intensity)"),
-                ("(x,y)", "($x, $y)")
-            ]))
-            self.plotExpXANES(p)
-            self.plotShiftXANES(p)
-            p.add_layout(p.legend[0], 'right')
-            show(p)
-        
+                p = figure(height=450, width=900, title="Un-Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                    ("(x,y)", "(Energy, Intensity)"),
+                    ("(x,y)", "($x, $y)")
+                ]))
+                self.plotExpXANES(p)
+                self.plotShiftXANES(p)
+                p.add_layout(p.legend[0], 'right')
+                show(p)
         return
 
-    def broaden(self,separate=True, Ængus=False):
+    def broaden(self,separate=True, Ængus=False, printFig=True):
         """
         This will take the shifted calculated spectra and broaden it based on the lifetime, instrument, and general disorder broadening.
         It creates a series of gaussians and lorentzians before applying it to the spectra appropriately.
@@ -426,6 +426,10 @@ class Broaden:
         ----------
         separate : True/False
             Specify whether or not to create a separate output plot of XES and XAS
+        Ængus : True/False
+            Turns off the XAS calculation
+        printFig : True/False
+            Turns off the printing of the output plot
         """
         if Ængus == "yup":
             Ængus = True
@@ -540,77 +544,77 @@ class Broaden:
                 for c3 in range(self.BroadSXSCount[c2][c1]):
                     self.BroadSXS[6,:,c2,c1] = self.BroadSXS[6,:,c2,c1]+(self.Disorder[c3,:]*self.BroadSXS[5][c3][c2][c1]*(self.BroadSXS[0][1][c2][c1]-self.BroadSXS[0][0][c2][c1]))
         self.add()
-
-        if separate is False:
-            if Ængus is True:
-                # Creating the figure for plotting the broadened data.
-                p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                    ("(x,y)", "(Energy, Intensity)"),
-                    ("(x,y)", "($x, $y)")
-                ]))
-                self.plotÆngus(p)
-                self.plotExp(p)
-                p.add_layout(p.legend[0], 'right')
-                show(p)
+        if printFig:
+            if separate is False:
+                if Ængus is True:
+                    # Creating the figure for plotting the broadened data.
+                    p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                            tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                    p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                        ("(x,y)", "(Energy, Intensity)"),
+                        ("(x,y)", "($x, $y)")
+                    ]))
+                    self.plotÆngus(p)
+                    self.plotExp(p)
+                    p.add_layout(p.legend[0], 'right')
+                    show(p)
+                else:
+                    # Creating the figure for plotting the broadened data.
+                    p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                            tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                    p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                        ("(x,y)", "(Energy, Intensity)"),
+                        ("(x,y)", "($x, $y)")
+                    ]))
+                    self.plotBroadCalc(p)
+                    self.plotExp(p)
+                    p.add_layout(p.legend[0], 'right')
+                    show(p)
             else:
-                # Creating the figure for plotting the broadened data.
-                p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                    ("(x,y)", "(Energy, Intensity)"),
-                    ("(x,y)", "($x, $y)")
-                ]))
-                self.plotBroadCalc(p)
-                self.plotExp(p)
-                p.add_layout(p.legend[0], 'right')
-                show(p)
-        else:
-            if Ængus is True:
-                p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                    ("(x,y)", "(Energy, Intensity)"),
-                    ("(x,y)", "($x, $y)")
-                ]))
-                self.plotExpXES(p)
-                self.plotBroadXES(p)
-                p.add_layout(p.legend[0], 'right')
-                show(p)
+                if Ængus is True:
+                    p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                            tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                    p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                        ("(x,y)", "(Energy, Intensity)"),
+                        ("(x,y)", "($x, $y)")
+                    ]))
+                    self.plotExpXES(p)
+                    self.plotBroadXES(p)
+                    p.add_layout(p.legend[0], 'right')
+                    show(p)
 
-                p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                    ("(x,y)", "(Energy, Intensity)"),
-                    ("(x,y)", "($x, $y)")
-                ]))
-                self.plotExpXANES(p)
-                self.plotÆngusXANES(p)
-                p.add_layout(p.legend[0], 'right')
-                show(p)
-            else:
-                p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                    ("(x,y)", "(Energy, Intensity)"),
-                    ("(x,y)", "($x, $y)")
-                ]))
-                self.plotExpXES(p)
-                self.plotBroadXES(p)
-                p.add_layout(p.legend[0], 'right')
-                show(p)
+                    p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                            tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                    p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                        ("(x,y)", "(Energy, Intensity)"),
+                        ("(x,y)", "($x, $y)")
+                    ]))
+                    self.plotExpXANES(p)
+                    self.plotÆngusXANES(p)
+                    p.add_layout(p.legend[0], 'right')
+                    show(p)
+                else:
+                    p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                            tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                    p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                        ("(x,y)", "(Energy, Intensity)"),
+                        ("(x,y)", "($x, $y)")
+                    ]))
+                    self.plotExpXES(p)
+                    self.plotBroadXES(p)
+                    p.add_layout(p.legend[0], 'right')
+                    show(p)
 
-                p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
-                        tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
-                p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
-                    ("(x,y)", "(Energy, Intensity)"),
-                    ("(x,y)", "($x, $y)")
-                ]))
-                self.plotExpXANES(p)
-                self.plotBroadXANES(p)
-                p.add_layout(p.legend[0], 'right')
-                show(p)
+                    p = figure(height=450, width=900, title="Broadened Data", x_axis_label="Energy (eV)", y_axis_label="Normalized Intensity (arb. units)",
+                            tools="pan,wheel_zoom,box_zoom,reset,crosshair,save")
+                    p.add_tools(HoverTool(show_arrow=False, line_policy='next', tooltips=[
+                        ("(x,y)", "(Energy, Intensity)"),
+                        ("(x,y)", "($x, $y)")
+                    ]))
+                    self.plotExpXANES(p)
+                    self.plotBroadXANES(p)
+                    p.add_layout(p.legend[0], 'right')
+                    show(p)
         return
 
     def add(self):
