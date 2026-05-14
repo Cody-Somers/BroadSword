@@ -1,3 +1,4 @@
+import sys
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,7 @@ class Broaden:
     """
 
     def __init__(self, maxSites=40,calc_max_length=3500,exp_max_length=1500):
+
         self.data = list() # Why is this here?
 
         self.maxSites = maxSites 
@@ -77,6 +79,11 @@ class Broaden:
         self.scaleXAS = None
         self.XESbandScale = None
 
+        # Parameters to consider when only one XANES is included
+        self.global_ES_fermi = 0
+        self.global_XANES = None
+        self.global_XANES_exist = False
+
     def clearFigures(self):
         """
         Used to clear previous figures. Shouldn't be necessary now that no global variables exist.
@@ -105,7 +112,6 @@ class Broaden:
         headerlines : [int]
             Specify the number of headerlines for the XES and XANES files respectively. 
         """
-        
         try:
             with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
                 df = pd.read_csv(xesFile, delimiter='\s+', header=None, skiprows=headerlines[0]) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook
@@ -200,27 +206,47 @@ class Broaden:
                 c1 += 1
             self.CalcSXSCount[1][self.CalcSXSCase] = c1 # Length for each Site
 
-        if XANES == 0: # If XANES is not present, then use XAS calc to get energy, and then put arrays to 0
+        if XANES != 0: # This is the case where user put in a XANES
+            with open(basedir + "/" + XANES, "r") as xanesFile:  # XANES Calculation
+                df = pd.read_csv(xanesFile, delimiter='\s+', header=None, skiprows=headerlines[2])
+                c1 = 0
+                for i in range(len(df)):
+                    self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1]  # Energy
+                    self.CalcSXS[1][c1][2][self.CalcSXSCase] = df[1][c1]  # Counts
+                    c1 += 1
+                self.CalcSXSCount[2][self.CalcSXSCase] = c1  # Length for each Site
+                self.global_ES_fermi = ES_fermi
+                self.global_XANES = XANES # This saves the name so that we can open it later
+                self.global_XANES_exist = True
+        elif self.global_XANES_exist: # This is the case where at least one XANES was included, but not included in this loadCalc
+            with open(basedir + "/" + self.global_XANES, "r") as xanesFile:  # XANES Calculation
+                df = pd.read_csv(xanesFile, delimiter='\s+', header=None, skiprows=headerlines[2])
+                c1 = 0
+                cond_band_found = False
+                for i in range(len(df)):
+                    self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1]  # Energy
+                    if df[1][c1] == 0: # This is the start of the input XANES
+                        self.CalcSXS[1][c1][2][self.CalcSXSCase] = df[1][c1]  # Counts
+                    elif cond_band_found is False: # This triggers on only the first non-zero value
+                        self.CalcSXS[1][c1][2][self.CalcSXSCase] = sys.float_info.min  # Counts
+                        cond_band_found = True
+                    else: # This puts the remaining values to 0 so that they don't impact the XANES
+                        self.CalcSXS[1][c1][2][self.CalcSXSCase] = 0
+                    c1 += 1
+                self.CalcSXSCount[2][self.CalcSXSCase] = c1  # Length for each Site
+        else: # This is the case where no XANES were included. Just use the XAS values
             with open(basedir + "/" + XAS, "r") as xasFile:  # XAS Calculation
                 df = pd.read_csv(xasFile, delimiter='\s+', header=None, skiprows=headerlines[1])
                 c1 = 0
                 for i in range(len(df)):
                     self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1]  # Energy
-                    self.CalcSXS[1][c1][2][self.CalcSXSCase] = 0  # Counts
+                    self.CalcSXS[1][c1][2][self.CalcSXSCase] = df[1][c1]  # Counts
                     c1 += 1
                 self.CalcSXSCount[2][self.CalcSXSCase] = c1  # Length for each Site
-        else:
-            with open(basedir+"/"+XANES, "r") as xanesFile: # XANES Calculation
-                df = pd.read_csv(xanesFile, delimiter='\s+',header=None, skiprows=headerlines[2])
-                c1 = 0
-                for i in range(len(df)):
-                    self.CalcSXS[0][c1][2][self.CalcSXSCase] = df[0][c1] # Energy
-                    self.CalcSXS[1][c1][2][self.CalcSXSCase] = df[1][c1] # Counts
-                    c1 += 1
-                self.CalcSXSCount[2][self.CalcSXSCase] = c1 # Length for each Site
+                self.global_ES_fermi = self.Fermi
 
         # Update the global variables with the parameters for that site.
-        self.Fermis[self.CalcSXSCase] = ES_fermi
+        self.Fermis[self.CalcSXSCase] = self.global_ES_fermi
         self.Binds[self.CalcSXSCase] = GS_bindingEnergy
         self.Edge.append(edge)
         self.Site[self.CalcSXSCase] = sites

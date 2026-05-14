@@ -16,8 +16,9 @@ Install the package from PyPi with the pip package manager. This is the recommen
 You will also need [Jupyter Notebook](https://github.com/jupyter) together with python 3 on your local machine.
 
 ## Example Program
-If you plan to use XANES, you need a XANES file for each XAS, otherwise it will simply copy the XAS and pretend it is XANES.
-This will cause issues if you are comparing a single XANES against multiple XAS spectra.
+If you have a XANES, it has to be included in the first loadCalc call, otherwise it will simply 
+take the XAS data and treat it as your XANES. This is not right.
+Best practice is to have either XANES for all calcs, or no XANES at all.
 
 ```
 # Specify the base directory for the location of the data files
