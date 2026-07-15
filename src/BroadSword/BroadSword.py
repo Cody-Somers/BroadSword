@@ -113,10 +113,23 @@ class Broaden:
             Specify the number of headerlines for the XES and XANES files respectively. 
         """
 
-        with open(basedir+"/"+XES, "r") as xesFile: # Measured XES
-            try:
+
+        try:
+            with open(basedir + "/" + XES, "r") as xesFile:  # Measured XES
                 df = pd.read_csv(xesFile, delimiter='\s+', header=None, skiprows=headerlines[0]) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook
-            except:
+            c1 = 0
+            maxEXP = 0
+            for i in range(len(df)):
+                self.ExpSXS[0][c1][0] = df[0][c1]  # Energy
+                self.ExpSXS[1][c1][0] = df[1][c1]  # Counts
+                if self.ExpSXS[1][c1][0] > maxEXP:
+                    maxEXP = self.ExpSXS[1][c1][0]  # Get max value in experimental XES
+                c1 += 1
+            self.ExpSXSCount[0] = c1  # Length of data points
+            for i in range(self.ExpSXSCount[0]):  # Normalize spectra
+                self.ExpSXS[1][i][0] = self.ExpSXS[1][i][0] / maxEXP
+        except:
+            with open(basedir + "/" + XES, "r") as xesFile:  # Measured XES
                 # This trys it as a .csv instead of a .txt
                 df = pd.read_csv(xesFile, header=None, skiprows=headerlines[0]) # Change to '\s*' and specify engine='python' if this breaks in jupyter notebook
             c1 = 0
@@ -131,10 +144,22 @@ class Broaden:
             for i in range(self.ExpSXSCount[0]): # Normalize spectra
                 self.ExpSXS[1][i][0] = self.ExpSXS[1][i][0]/maxEXP
 
-        with open(basedir+"/"+XANES, "r") as xanesFile: # Measured XANES
-            try:
+        try:
+            with open(basedir + "/" + XANES, "r") as xanesFile:  # Measured XANES
                 df = pd.read_csv(xanesFile, delimiter='\s+', header=None, skiprows=headerlines[1])
-            except:
+            c1 = 0
+            maxABS = 0
+            for i in range(len(df)):
+                self.ExpSXS[0][c1][1] = df[0][c1]  # Energy
+                self.ExpSXS[1][c1][1] = df[1][c1]  # Counts
+                if self.ExpSXS[1][c1][1] > maxABS:
+                    maxABS = self.ExpSXS[1][c1][1]  # Get max value in experimental XES
+                c1 += 1
+            self.ExpSXSCount[1] = c1  # Length of data points
+            for i in range(self.ExpSXSCount[1]):  # Normalize spectra
+                self.ExpSXS[1][i][1] = self.ExpSXS[1][i][1] / maxABS
+        except:
+            with open(basedir + "/" + XANES, "r") as xanesFile:  # Measured XANES
                 df = pd.read_csv(xanesFile, header=None, skiprows=headerlines[1])
             c1 = 0
             maxABS = 0
